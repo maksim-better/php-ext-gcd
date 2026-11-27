@@ -1,5 +1,6 @@
 #include "dispatch.h"
 #include "queue.h"
+#include "group.h"
 #include "../runtime/task.h"
 #include "../runtime/copy.h"
 #include "../runtime/thread_pool.h"
@@ -110,4 +111,39 @@ PHP_FUNCTION(barrier_sync)
     gcd_pool_task_done();
     gcd_task_destroy(t);
     RETURN_NULL();
+}
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_apply, 0, 0, 3)
+    ZEND_ARG_INFO(0, iterations)
+    ZEND_ARG_INFO(0, queue)
+    ZEND_ARG_INFO(0, task)
+ZEND_END_ARG_INFO()
+
+PHP_FUNCTION(apply)
+{
+    zend_long iterations;
+    zval *qobj, *closure;
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+        Z_PARAM_LONG(iterations)
+        Z_PARAM_OBJECT(qobj)
+        Z_PARAM_OBJECT(closure)
+    ZEND_PARSE_PARAMETERS_END();
+    gcd_queue *q = gcd_queue_from_zval(qobj);
+    if (!q) { zend_throw_exception(zend_ce_type_error, "expected GCD\\Queue", 0); RETURN_THROWS(); }
+    gcd_group *g = gcd_group_new();
+    for (zend_long i = 0; i < iterations; i++) {
+        zval argv;
+        array_init(&argv);
+        add_next_index_long(&argv, i);
+        gcd_task *t = gcd_task_build(closure, &argv);
+        zval_ptr_dtor(&argv);
+        if (!t) continue;
+        gcd_group_enter(g);
+        t->queue = q;
+        t->is_sync = 0;
+        t->group = g;
+        if (q->width == 1) gcd_queue_enqueue(q, t); else gcd_pool_submit(t);
+    }
+    gcd_group_wait(g);
+    gcd_group_free(g);
 }

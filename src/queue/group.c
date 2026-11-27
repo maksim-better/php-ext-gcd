@@ -71,6 +71,36 @@ void gcd_group_leave(gcd_group *g)
     }
 }
 
+gcd_group *gcd_group_new(void)
+{
+    gcd_group *g = malloc(sizeof(gcd_group));
+    atomic_init(&g->count, 0);
+    pthread_mutex_init(&g->lock, NULL);
+    pthread_cond_init(&g->cond, NULL);
+    return g;
+}
+
+void gcd_group_free(gcd_group *g)
+{
+    pthread_mutex_destroy(&g->lock);
+    pthread_cond_destroy(&g->cond);
+    free(g);
+}
+
+void gcd_group_enter(gcd_group *g)
+{
+    atomic_fetch_add(&g->count, 1);
+}
+
+void gcd_group_wait(gcd_group *g)
+{
+    pthread_mutex_lock(&g->lock);
+    while (atomic_load(&g->count) > 0) {
+        pthread_cond_wait(&g->cond, &g->lock);
+    }
+    pthread_mutex_unlock(&g->lock);
+}
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_group_create, 0, 0, 0)
 ZEND_END_ARG_INFO()
 

@@ -197,6 +197,12 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_data_map, 0, 0, 1)
     ZEND_ARG_INFO(0, data)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_apply, 0, 0, 3)
+    ZEND_ARG_INFO(0, iterations)
+    ZEND_ARG_INFO(0, queue)
+    ZEND_ARG_INFO(0, task)
+ZEND_END_ARG_INFO()
+
 static const zend_function_entry gcd_functions[] = {
     ZEND_NS_FE("GCD", queue_create, arginfo_gcd_queue_create)
     ZEND_NS_FE("GCD", global_queue, arginfo_gcd_global_queue)
@@ -222,6 +228,7 @@ static const zend_function_entry gcd_functions[] = {
     ZEND_NS_FE("GCD", data_concat, arginfo_gcd_data_concat)
     ZEND_NS_FE("GCD", data_subrange, arginfo_gcd_data_subrange)
     ZEND_NS_FE("GCD", data_create_map, arginfo_gcd_data_map)
+    ZEND_NS_FE("GCD", apply, arginfo_gcd_apply)
     ZEND_NS_FE("GCD", sync, arginfo_gcd_dispatch)
     ZEND_NS_FE("GCD", async, arginfo_gcd_dispatch)
     ZEND_NS_FE("GCD", barrier_async, arginfo_gcd_dispatch)
