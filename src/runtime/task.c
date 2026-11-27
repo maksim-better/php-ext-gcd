@@ -80,6 +80,9 @@ int gcd_invoke(zend_op_array *oa, zval *argv, uint32_t argc)
     zend_execute_data dummy_ex;
     memset(&dummy_ex, 0, sizeof(dummy_ex));
     dummy_ex.prev_execute_data = prev_ex;
+    /* NOTE: dummy_ex.func stays NULL. Release builds return the exception to the
+     * caller correctly; PHP *debug* builds assert in zend_fetch_debug_backtrace
+     * on this frame (known debug-only artifact, see implement-log). */
     EG(current_execute_data) = &dummy_ex;
 
     zend_call_function(&fci, &fcc);
