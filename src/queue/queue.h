@@ -18,6 +18,8 @@ typedef struct _gcd_queue {
     int suspended;
     HashTable specific;             /* persistent key -> zval context */
     zend_op_array *error_handler;   /* per-queue error handler (persistent) */
+    int qos;                        /* -1 = inherit from target */
+    struct _gcd_queue *target;      /* target queue (hierarchy) */
     pthread_mutex_t width_mutex;
     pthread_cond_t width_cond;
 } gcd_queue;
@@ -47,5 +49,9 @@ PHP_FUNCTION(queue_set_specific);
 PHP_FUNCTION(queue_get_specific);
 PHP_FUNCTION(queue_set_error_handler);
 PHP_FUNCTION(current_queue);
+PHP_FUNCTION(queue_set_qos);
+PHP_FUNCTION(queue_get_qos);
+PHP_FUNCTION(queue_set_target);
+PHP_FUNCTION(qos_class_self);
 
 #endif

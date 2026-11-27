@@ -33,6 +33,8 @@ static zend_object *gcd_queue_create_object(zend_class_entry *ce)
     pthread_mutex_init(&obj->q->width_mutex, NULL);
     pthread_cond_init(&obj->q->width_cond, NULL);
     zend_hash_init(&obj->q->specific, 4, NULL, specific_dtor, 1);
+    obj->q->qos = -1;
+    obj->q->target = NULL;
     return &obj->std;
 }
 
@@ -87,6 +89,71 @@ PHP_FUNCTION(current_queue)
     gcd_queue_wrap_borrowed(return_value, gcd_current_queue);
 }
 
+#define GCD_QOS_DEFAULT 2
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_queue_set_qos, 0, 0, 2)
+    ZEND_ARG_INFO(0, queue)
+    ZEND_ARG_INFO(0, qos)
+ZEND_END_ARG_INFO()
+
+PHP_FUNCTION(queue_set_qos)
+{
+    zval *qobj;
+    zend_long qos;
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_OBJECT(qobj)
+        Z_PARAM_LONG(qos)
+    ZEND_PARSE_PARAMETERS_END();
+    gcd_queue *q = gcd_queue_from_zval(qobj);
+    if (!q) { zend_throw_exception(zend_ce_type_error, "expected GCD\\Queue", 0); RETURN_THROWS(); }
+    q->qos = (int) qos;
+}
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_queue_get_qos, 0, 0, 1)
+    ZEND_ARG_INFO(0, queue)
+ZEND_END_ARG_INFO()
+
+PHP_FUNCTION(queue_get_qos)
+{
+    zval *qobj;
+    ZEND_PARSE_PARAMETERS_START(1, 1) Z_PARAM_OBJECT(qobj) ZEND_PARSE_PARAMETERS_END();
+    gcd_queue *q = gcd_queue_from_zval(qobj);
+    if (!q) { zend_throw_exception(zend_ce_type_error, "expected GCD\\Queue", 0); RETURN_THROWS(); }
+    int qos = GCD_QOS_DEFAULT;
+    for (gcd_queue *cur = q; cur; cur = cur->target) {
+        if (cur->qos >= 0) { qos = cur->qos; break; }
+    }
+    RETURN_LONG(qos);
+}
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_queue_set_target, 0, 0, 2)
+    ZEND_ARG_INFO(0, queue)
+    ZEND_ARG_INFO(0, target)
+ZEND_END_ARG_INFO()
+
+PHP_FUNCTION(queue_set_target)
+{
+    zval *qobj, *tobj;
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_OBJECT(qobj)
+        Z_PARAM_OBJECT(tobj)
+    ZEND_PARSE_PARAMETERS_END();
+    gcd_queue *q = gcd_queue_from_zval(qobj);
+    gcd_queue *t = gcd_queue_from_zval(tobj);
+    if (!q || !t) { zend_throw_exception(zend_ce_type_error, "expected GCD\\Queue", 0); RETURN_THROWS(); }
+    q->target = t;
+}
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_qos_class_self, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+PHP_FUNCTION(qos_class_self)
+{
+    ZEND_PARSE_PARAMETERS_NONE();
+    /* Linux best-effort: v1 reports the default class */
+    RETURN_LONG(GCD_QOS_DEFAULT);
+}
+
 void gcd_queue_minit(void)
 {
     zend_class_entry ce;
@@ -106,6 +173,12 @@ void gcd_queue_minit(void)
 
     INIT_CLASS_ENTRY(ce, "GCD\\DeadlockException", NULL);
     gcd_deadlock_ce = zend_register_internal_class_ex(&ce, zend_ce_error);
+
+    zend_register_long_constant("GCD\\QOS_USER_INTERACTIVE", sizeof("GCD\\QOS_USER_INTERACTIVE") - 1, 4, CONST_CS | CONST_PERSISTENT, 0);
+    zend_register_long_constant("GCD\\QOS_USER_INITIATED", sizeof("GCD\\QOS_USER_INITIATED") - 1, 3, CONST_CS | CONST_PERSISTENT, 0);
+    zend_register_long_constant("GCD\\QOS_DEFAULT", sizeof("GCD\\QOS_DEFAULT") - 1, 2, CONST_CS | CONST_PERSISTENT, 0);
+    zend_register_long_constant("GCD\\QOS_UTILITY", sizeof("GCD\\QOS_UTILITY") - 1, 1, CONST_CS | CONST_PERSISTENT, 0);
+    zend_register_long_constant("GCD\\QOS_BACKGROUND", sizeof("GCD\\QOS_BACKGROUND") - 1, 0, CONST_CS | CONST_PERSISTENT, 0);
 }
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_queue_create, 0, 0, 1)

@@ -160,6 +160,23 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_source_one, 0, 0, 1)
     ZEND_ARG_INFO(0, source)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_queue_set_qos, 0, 0, 2)
+    ZEND_ARG_INFO(0, queue)
+    ZEND_ARG_INFO(0, qos)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_queue_get_qos, 0, 0, 1)
+    ZEND_ARG_INFO(0, queue)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_queue_set_target, 0, 0, 2)
+    ZEND_ARG_INFO(0, queue)
+    ZEND_ARG_INFO(0, target)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_qos_self, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
 static const zend_function_entry gcd_functions[] = {
     ZEND_NS_FE("GCD", queue_create, arginfo_gcd_queue_create)
     ZEND_NS_FE("GCD", global_queue, arginfo_gcd_global_queue)
@@ -177,6 +194,10 @@ static const zend_function_entry gcd_functions[] = {
     ZEND_NS_FE("GCD", source_set_timer, arginfo_gcd_source_set_timer)
     ZEND_NS_FE("GCD", source_resume, arginfo_gcd_source_one)
     ZEND_NS_FE("GCD", source_cancel, arginfo_gcd_source_one)
+    ZEND_NS_FE("GCD", queue_set_qos, arginfo_gcd_queue_set_qos)
+    ZEND_NS_FE("GCD", queue_get_qos, arginfo_gcd_queue_get_qos)
+    ZEND_NS_FE("GCD", queue_set_target, arginfo_gcd_queue_set_target)
+    ZEND_NS_FE("GCD", qos_class_self, arginfo_gcd_qos_self)
     ZEND_NS_FE("GCD", sync, arginfo_gcd_dispatch)
     ZEND_NS_FE("GCD", async, arginfo_gcd_dispatch)
     ZEND_NS_FE("GCD", barrier_async, arginfo_gcd_dispatch)
