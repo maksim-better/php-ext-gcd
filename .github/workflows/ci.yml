@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [001-php-gcd-extension, main]
+  pull_request:
+
+jobs:
+  linux-zts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clone php-src PHP-8.4 (host side, for Docker COPY)
+        run: |
+          git clone --depth 1 --branch PHP-8.4 https://github.com/php/php-src.git docker/php-src
+          rm -rf docker/php-src/.git
+      - name: Build ZTS PHP 8.4 image
+        run: bash docker/build.sh
+      - name: Build extension
+        run: docker/dev.sh bash -c "phpize && ./configure --enable-gcd && make -j\$(nproc)"
+      - name: Run PHPT tests
+        run: docker/dev.sh bash -c "php run-tests.php -q tests/"
+
+  macos-zts:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build ZTS PHP 8.4 from source
+        run: bash scripts/build-zts-macos.sh
+      - name: Build extension
+        run: |
+          export PATH="$HOME/php-zts/bin:$PATH"
+          phpize && ./configure --enable-gcd && make -j$(sysctl -n hw.ncpu)
+      - name: Run PHPT tests
+        run: |
+          export PATH="$HOME/php-zts/bin:$PATH"
+          php run-tests.php -q tests/
