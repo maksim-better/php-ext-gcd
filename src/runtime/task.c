@@ -173,7 +173,11 @@ gcd_task *gcd_task_build(zval *closure, zval *argv)
     ZVAL_NULL(&pargv);
     uint32_t argc = 0;
     if (argv) {
-        gcd_zval_copy_persistent(&pargv, argv);
+        if (gcd_zval_copy_persistent(&pargv, argv) == FAILURE) {
+            gcd_op_array_free_persistent(oa);
+            zend_throw_exception(gcd_serialization_ce, "value is not serializable", 0);
+            return NULL;
+        }
         argc = zend_hash_num_elements(Z_ARRVAL_P(argv));
     }
     return gcd_task_create(oa, &pargv, argc);
