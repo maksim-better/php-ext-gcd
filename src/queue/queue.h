@@ -25,6 +25,7 @@ typedef struct {
 
 extern zend_class_entry *gcd_queue_ce;
 extern zend_class_entry *gcd_capture_ce;
+extern zend_class_entry *gcd_serialization_ce;
 
 void gcd_queue_minit(void);
 gcd_queue *gcd_queue_from_zval(zval *zv);

@@ -7,6 +7,7 @@
 
 zend_class_entry *gcd_queue_ce;
 zend_class_entry *gcd_capture_ce;
+zend_class_entry *gcd_serialization_ce;
 static zend_object_handlers gcd_queue_handlers;
 
 static inline gcd_queue_object *gcd_queue_fetch(zend_object *obj)
@@ -64,6 +65,9 @@ void gcd_queue_minit(void)
 
     INIT_CLASS_ENTRY(ce, "GCD\\CaptureException", NULL);
     gcd_capture_ce = zend_register_internal_class_ex(&ce, zend_ce_error);
+
+    INIT_CLASS_ENTRY(ce, "GCD\\SerializationException", NULL);
+    gcd_serialization_ce = zend_register_internal_class_ex(&ce, zend_ce_error);
 }
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_queue_create, 0, 0, 1)
