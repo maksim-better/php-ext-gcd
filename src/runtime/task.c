@@ -10,6 +10,8 @@
 
 TSRMLS_CACHE_EXTERN();
 
+__thread gcd_queue *gcd_current_queue = NULL;
+
 gcd_task *gcd_task_create(zend_op_array *oa, zval *argv, uint32_t argc)
 {
     gcd_task *t = pemalloc(sizeof(gcd_task), 1);
@@ -112,10 +114,13 @@ void gcd_task_execute(gcd_task *t)
         pthread_mutex_unlock(&q->width_mutex);
     }
 
+    gcd_queue *prev_cur = gcd_current_queue;
+    if (q && q->width == 1) gcd_current_queue = q;
     t->failed = gcd_invoke(t->op_array, &t->argv, t->argc);
     if (t->failed) {
         gcd_error_report(t);   /* reads EG(exception), reports, clears */
     }
+    gcd_current_queue = prev_cur;
 
     if (gated) {
         pthread_mutex_lock(&q->width_mutex);

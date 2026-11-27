@@ -9,6 +9,7 @@
 zend_class_entry *gcd_queue_ce;
 zend_class_entry *gcd_capture_ce;
 zend_class_entry *gcd_serialization_ce;
+zend_class_entry *gcd_deadlock_ce;
 static zend_object_handlers gcd_queue_handlers;
 
 static void specific_dtor(zval *zv) { gcd_zval_free(zv, 1); }
@@ -24,6 +25,7 @@ static zend_object *gcd_queue_create_object(zend_class_entry *ce)
     zend_object_std_init(&obj->std, ce);
     object_properties_init(&obj->std, ce);
     obj->std.handlers = &gcd_queue_handlers;
+    obj->owns = 1;
     obj->q = calloc(1, sizeof(gcd_queue));
     obj->q->width = 1;
     pthread_mutex_init(&obj->q->drain_lock, NULL);
@@ -37,7 +39,7 @@ static zend_object *gcd_queue_create_object(zend_class_entry *ce)
 static void gcd_queue_free_object(zend_object *object)
 {
     gcd_queue_object *obj = gcd_queue_fetch(object);
-    if (obj->q) {
+    if (obj->q && obj->owns) {
         pthread_mutex_destroy(&obj->q->drain_lock);
         pthread_mutex_destroy(&obj->q->list_mutex);
         pthread_mutex_destroy(&obj->q->width_mutex);
@@ -57,6 +59,34 @@ gcd_queue *gcd_queue_from_zval(zval *zv)
     return gcd_queue_fetch(Z_OBJ_P(zv))->q;
 }
 
+void gcd_queue_wrap_borrowed(zval *return_value, gcd_queue *q)
+{
+    object_init_ex(return_value, gcd_queue_ce);
+    gcd_queue_object *obj = gcd_queue_fetch(Z_OBJ_P(return_value));
+    if (obj->q && obj->owns) {
+        /* drop the auto-created queue, replace with borrowed */
+        pthread_mutex_destroy(&obj->q->drain_lock);
+        pthread_mutex_destroy(&obj->q->list_mutex);
+        pthread_mutex_destroy(&obj->q->width_mutex);
+        pthread_cond_destroy(&obj->q->width_cond);
+        zend_hash_destroy(&obj->q->specific);
+        free(obj->q);
+    }
+    obj->q = q;
+    obj->owns = 0;
+}
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_current_queue, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+PHP_FUNCTION(current_queue)
+{
+    ZEND_PARSE_PARAMETERS_NONE();
+    extern __thread gcd_queue *gcd_current_queue;
+    if (!gcd_current_queue) RETURN_NULL();
+    gcd_queue_wrap_borrowed(return_value, gcd_current_queue);
+}
+
 void gcd_queue_minit(void)
 {
     zend_class_entry ce;
@@ -73,6 +103,9 @@ void gcd_queue_minit(void)
 
     INIT_CLASS_ENTRY(ce, "GCD\\SerializationException", NULL);
     gcd_serialization_ce = zend_register_internal_class_ex(&ce, zend_ce_error);
+
+    INIT_CLASS_ENTRY(ce, "GCD\\DeadlockException", NULL);
+    gcd_deadlock_ce = zend_register_internal_class_ex(&ce, zend_ce_error);
 }
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_queue_create, 0, 0, 1)

@@ -24,15 +24,18 @@ typedef struct _gcd_queue {
 
 typedef struct {
     gcd_queue *q;
+    int owns;                  /* 1: free q on dtor; 0: borrowed wrapper */
     zend_object std;
 } gcd_queue_object;
 
 extern zend_class_entry *gcd_queue_ce;
 extern zend_class_entry *gcd_capture_ce;
 extern zend_class_entry *gcd_serialization_ce;
+extern zend_class_entry *gcd_deadlock_ce;
 
 void gcd_queue_minit(void);
 gcd_queue *gcd_queue_from_zval(zval *zv);
+void gcd_queue_wrap_borrowed(zval *return_value, gcd_queue *q);
 void gcd_queue_enqueue(gcd_queue *q, struct _gcd_task *t);
 void gcd_queue_drain(gcd_queue *q);
 
@@ -43,5 +46,6 @@ PHP_FUNCTION(queue_resume);
 PHP_FUNCTION(queue_set_specific);
 PHP_FUNCTION(queue_get_specific);
 PHP_FUNCTION(queue_set_error_handler);
+PHP_FUNCTION(current_queue);
 
 #endif

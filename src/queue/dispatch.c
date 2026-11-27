@@ -29,6 +29,12 @@ PHP_FUNCTION(sync)
     gcd_task *t = gcd_task_build(closure, argv);
     if (!t) RETURN_THROWS();
     gcd_queue *q = gcd_queue_from_zval(qobj);
+    extern __thread gcd_queue *gcd_current_queue;
+    if (q && q->width == 1 && q == gcd_current_queue) {
+        gcd_task_destroy(t);
+        zend_throw_exception(gcd_deadlock_ce, "sync dispatch to current serial queue would deadlock", 0);
+        RETURN_THROWS();
+    }
     t->queue = q;
     t->is_sync = 1;
 

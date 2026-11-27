@@ -130,6 +130,7 @@ ZEND_END_ARG_INFO()
 static const zend_function_entry gcd_functions[] = {
     ZEND_NS_FE("GCD", queue_create, arginfo_gcd_queue_create)
     ZEND_NS_FE("GCD", global_queue, arginfo_gcd_global_queue)
+    ZEND_NS_FE("GCD", current_queue, arginfo_gcd_group_create)
     ZEND_NS_FE("GCD", queue_suspend, arginfo_gcd_group_one)
     ZEND_NS_FE("GCD", queue_resume, arginfo_gcd_group_one)
     ZEND_NS_FE("GCD", queue_set_specific, arginfo_gcd_queue_set_specific)
