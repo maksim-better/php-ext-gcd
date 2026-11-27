@@ -14,6 +14,7 @@ typedef struct _gcd_task {
     int is_barrier;            /* exclusive drain barrier */
     int owns_oa;               /* 1: free op_array on destroy; 0: borrowed */
     uint64_t seq;              /* per-queue submission order (concurrent gate) */
+    int no_leave;              /* 1: notify task — holds group lifetime ref but does not decrement count */
     pthread_mutex_t mutex;
     pthread_cond_t cond;
     int done;

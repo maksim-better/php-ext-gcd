@@ -69,17 +69,26 @@ void gcd_group_leave(gcd_group *g)
     long old = atomic_fetch_sub(&g->count, 1);
     if (old == 1) {
         pthread_mutex_lock(&g->lock);
-        for (struct gcd_notify *n = g->notify_head; n; n = n->next) {
+        /* Consume the notify list: each registration fires once (true GCD). */
+        struct gcd_notify *head = g->notify_head;
+        g->notify_head = NULL;
+        for (struct gcd_notify *n = head; n; ) {
+            struct gcd_notify *nx = n->next;
             if (n->handler && n->q) {
                 gcd_task *t = gcd_task_create(n->handler, NULL, 0);
-                t->owns_oa = 0;
+                t->owns_oa = 1;        /* task takes ownership of the handler */
                 t->queue = n->q;
                 gcd_queue_retain(n->q);
                 t->is_sync = 0;
-                t->group = g;
+                t->no_leave = 1;       /* must not decrement the group count */
+                t->group = g;          /* lifetime ref only (released on destroy) */
                 gcd_group_retain(g);
                 gcd_queue_submit(n->q, t);
+            } else if (n->handler) {
+                gcd_op_array_free_persistent(n->handler);
             }
+            free(n);
+            n = nx;
         }
         pthread_cond_broadcast(&g->cond);
         pthread_mutex_unlock(&g->lock);

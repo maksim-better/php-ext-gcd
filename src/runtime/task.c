@@ -28,6 +28,7 @@ gcd_task *gcd_task_create(zend_op_array *oa, zval *argv, uint32_t argc)
     t->is_sync = 0;
     t->is_barrier = 0;
     t->seq = 0;
+    t->no_leave = 0;
     t->owns_oa = 1;
     pthread_mutex_init(&t->mutex, NULL);
     pthread_cond_init(&t->cond, NULL);
@@ -153,7 +154,7 @@ void gcd_task_execute(gcd_task *t)
         pthread_cond_signal(&t->cond);
         pthread_mutex_unlock(&t->mutex);
     } else {
-        if (t->group) gcd_group_leave(t->group);
+        if (t->group && !t->no_leave) gcd_group_leave(t->group);
         gcd_pool_task_done();
         gcd_task_destroy(t);
     }
