@@ -12,5 +12,11 @@ if test "$PHP_GCD" != "no"; then
   AC_MSG_RESULT([yes])
 
   AC_DEFINE(HAVE_GCD, 1, [Whether you have gcd support])
-  PHP_NEW_EXTENSION(gcd, gcd.c, $ext_shared)
+  PHP_NEW_EXTENSION(gcd, gcd.c \
+    src/runtime/php_context.c \
+    src/runtime/copy.c \
+    src/runtime/task.c \
+    src/runtime/thread_pool.c \
+    src/queue/queue.c \
+    src/queue/dispatch.c, $ext_shared)
 fi

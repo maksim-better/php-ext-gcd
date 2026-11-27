@@ -3,14 +3,24 @@
 #endif
 
 #include "php_gcd.h"
+#include "src/queue/queue.h"
+#include "src/queue/dispatch.h"
+#include "src/runtime/thread_pool.h"
+#include "src/runtime/php_context.h"
+#include <ext/standard/info.h>
+
+TSRMLS_CACHE_DEFINE();
 
 PHP_MINIT_FUNCTION(gcd)
 {
+    gcd_context_capture_parent();
+    gcd_queue_minit();
     return SUCCESS;
 }
 
 PHP_MSHUTDOWN_FUNCTION(gcd)
 {
+    gcd_pool_shutdown();
     return SUCCESS;
 }
 
@@ -23,7 +33,27 @@ PHP_MINFO_FUNCTION(gcd)
     php_info_print_table_end();
 }
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_queue_create, 0, 0, 1)
+    ZEND_ARG_INFO(0, label)
+    ZEND_ARG_INFO(0, width)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_global_queue, 0, 0, 0)
+    ZEND_ARG_INFO(0, qos)
+    ZEND_ARG_INFO(0, pool_size)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_dispatch, 0, 0, 2)
+    ZEND_ARG_INFO(0, queue)
+    ZEND_ARG_INFO(0, task)
+    ZEND_ARG_INFO(0, argv)
+ZEND_END_ARG_INFO()
+
 static const zend_function_entry gcd_functions[] = {
+    ZEND_NS_FE("GCD", queue_create, arginfo_gcd_queue_create)
+    ZEND_NS_FE("GCD", global_queue, arginfo_gcd_global_queue)
+    ZEND_NS_FE("GCD", sync, arginfo_gcd_dispatch)
+    ZEND_NS_FE("GCD", async, arginfo_gcd_dispatch)
     PHP_FE_END
 };
 
