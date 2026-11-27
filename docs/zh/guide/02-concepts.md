@@ -29,7 +29,7 @@ unlink($out);
 
 扩展运行一个自定义 pthread 线程池。每个 worker 线程启动一个**隔离的 PHP 运行时**——一线程一请求。由此必须这样设计：
 
-- 任务里的 `echo` 不会到达脚本的 STDOUT。结果通过文件、[`sync`](03-dispatch.md) 的返回值或[共享容器](07-containers.md)传回。
+- 任务里的 `echo` 不会到达脚本的 STDOUT。结果通过文件或[共享容器](07-containers.md)传回；[`sync`](03-dispatch.md) 只等待任务完成，返回 `null`。
 - 普通 PHP 全局变量与静态变量是每运行时各自的，不在任务间共享。
 - 只有共享容器（Atomic、Map、Set、ConcurrentQueue）为跨线程访问而生。
 

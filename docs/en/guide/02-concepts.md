@@ -29,7 +29,7 @@ Queues are handles: create them with [`queue_create`](../api/queue.md#queue_crea
 
 The extension runs a custom pthread pool. Each worker thread boots an **isolated PHP runtime** — one request per thread. Consequences you must design around:
 
-- A task's `echo` does not reach your script's STDOUT. Return results through files, the return value of [`sync`](03-dispatch.md), or [shared containers](07-containers.md).
+- A task's `echo` does not reach your script's STDOUT. Return results through files or [shared containers](07-containers.md); [`sync`](03-dispatch.md) waits for a task but returns `null`.
 - Ordinary PHP globals and statics are per-runtime, not shared between tasks.
 - Only the shared containers (Atomic, Map, Set, ConcurrentQueue) are built for cross-thread access.
 
