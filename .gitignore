@@ -3,6 +3,9 @@
 # Claude Code 配置与技能
 .claude/
 
+# Superpowers 执行工作区（ledger / briefs / review 包）
+.superpowers/
+
 # Spec Kit (speckit) 脚手架：模板、脚本、工作流、本地状态
 .specify/
 
