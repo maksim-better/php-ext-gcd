@@ -212,6 +212,15 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_main_queue, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_source_merge_data, 0, 0, 2)
+    ZEND_ARG_INFO(0, source)
+    ZEND_ARG_INFO(0, data)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_source_get_data, 0, 0, 1)
+    ZEND_ARG_INFO(0, source)
+ZEND_END_ARG_INFO()
+
 static const zend_function_entry gcd_functions[] = {
     ZEND_NS_FE("GCD", queue_create, arginfo_gcd_queue_create)
     ZEND_NS_FE("GCD", global_queue, arginfo_gcd_global_queue)
@@ -229,6 +238,8 @@ static const zend_function_entry gcd_functions[] = {
     ZEND_NS_FE("GCD", source_set_timer, arginfo_gcd_source_set_timer)
     ZEND_NS_FE("GCD", source_resume, arginfo_gcd_source_one)
     ZEND_NS_FE("GCD", source_cancel, arginfo_gcd_source_one)
+    ZEND_NS_FE("GCD", source_merge_data, arginfo_gcd_source_merge_data)
+    ZEND_NS_FE("GCD", source_get_data, arginfo_gcd_source_get_data)
     ZEND_NS_FE("GCD", queue_set_qos, arginfo_gcd_queue_set_qos)
     ZEND_NS_FE("GCD", queue_get_qos, arginfo_gcd_queue_get_qos)
     ZEND_NS_FE("GCD", queue_set_target, arginfo_gcd_queue_set_target)

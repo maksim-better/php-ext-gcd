@@ -7,4 +7,6 @@ PHP_FUNCTION(source_set_event_handler);
 PHP_FUNCTION(source_set_timer);
 PHP_FUNCTION(source_resume);
 PHP_FUNCTION(source_cancel);
+PHP_FUNCTION(source_merge_data);
+PHP_FUNCTION(source_get_data);
 #endif
