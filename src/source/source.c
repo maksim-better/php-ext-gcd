@@ -76,6 +76,7 @@ static void *source_thread(void *arg)
         sleep_sec(s->start);
         while (!atomic_load(&s->cancelled)) {
             dispatch_handler(s);
+            if (s->interval <= 0) break;
             sleep_sec(s->interval);
         }
     } else if (s->type == GCD_SOURCE_SIGNAL) {
@@ -255,7 +256,7 @@ ZEND_END_ARG_INFO()
 PHP_FUNCTION(source_set_timer)
 {
     zval *sobj;
-    double start, interval, leeway = 0;
+    double start, interval = 0, leeway = 0;
     ZEND_PARSE_PARAMETERS_START(2, 4)
         Z_PARAM_OBJECT(sobj)
         Z_PARAM_DOUBLE(start)
