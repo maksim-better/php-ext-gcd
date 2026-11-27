@@ -21,6 +21,7 @@ typedef struct _gcd_task {
 
 gcd_task *gcd_task_create(zend_op_array *oa, zval *argv, uint32_t argc);
 gcd_task *gcd_task_build(zval *closure, zval *argv);  /* from PHP Closure + argv */
+int gcd_invoke(zend_op_array *oa, zval *argv, uint32_t argc);  /* run in current ctx */
 void gcd_task_execute(gcd_task *t);  /* runs inside a worker PHP context */
 void gcd_task_wait(gcd_task *t);
 void gcd_task_destroy(gcd_task *t);

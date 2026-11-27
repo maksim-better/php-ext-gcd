@@ -244,3 +244,27 @@ PHP_FUNCTION(queue_get_specific)
     pthread_mutex_unlock(&q->width_mutex);
     RETURN_NULL();
 }
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_queue_set_error_handler, 0, 0, 2)
+    ZEND_ARG_INFO(0, queue)
+    ZEND_ARG_INFO(0, handler)
+ZEND_END_ARG_INFO()
+
+PHP_FUNCTION(queue_set_error_handler)
+{
+    zval *qobj, *closure;
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_OBJECT(qobj)
+        Z_PARAM_OBJECT(closure)
+    ZEND_PARSE_PARAMETERS_END();
+    gcd_queue *q = gcd_queue_from_zval(qobj);
+    if (!q) { zend_throw_exception(zend_ce_type_error, "expected GCD\\Queue", 0); RETURN_THROWS(); }
+    zend_op_array *src = (zend_op_array *) ((char *) Z_OBJ_P(closure) + sizeof(zend_object));
+    zend_op_array *copy = gcd_op_array_copy_persistent(src);
+    if (!copy) {
+        zend_throw_exception(gcd_capture_ce, "handler closure unsupported in v1", 0);
+        RETURN_THROWS();
+    }
+    if (q->error_handler) gcd_op_array_free_persistent(q->error_handler);
+    q->error_handler = copy;
+}

@@ -112,8 +112,13 @@ zend_op_array *gcd_op_array_copy_persistent(zend_op_array *src)
     oa->run_time_cache__ptr = NULL;
     oa->refcount = NULL;
     oa->static_variables = NULL;
-    oa->live_range = NULL;
     oa->try_catch_array = NULL;
+    if (src->last_live_range) {
+        oa->live_range = pemalloc(sizeof(zend_live_range) * src->last_live_range, 1);
+        memcpy(oa->live_range, src->live_range, sizeof(zend_live_range) * src->last_live_range);
+    } else {
+        oa->live_range = NULL;
+    }
     return oa;
 }
 
@@ -126,6 +131,7 @@ void gcd_op_array_free_persistent(zend_op_array *oa)
         }
     }
     if (oa->opcodes) pefree(oa->opcodes, 1);  /* single block including literals */
+    if (oa->live_range) pefree(oa->live_range, 1);
     if (oa->vars) {
         for (uint32_t i = 0; i < oa->last_var; i++) {
             if (oa->vars[i]) zend_string_release(oa->vars[i]);

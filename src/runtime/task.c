@@ -1,5 +1,6 @@
 #include "task.h"
 #include "copy.h"
+#include "error.h"
 #include "../queue/queue.h"
 #include "../queue/group.h"
 #include <Zend/zend_execute.h>
@@ -31,6 +32,66 @@ gcd_task *gcd_task_create(zend_op_array *oa, zval *argv, uint32_t argc)
     return t;
 }
 
+int gcd_invoke(zend_op_array *oa, zval *argv, uint32_t argc)
+{
+    zval *params = argc ? ecalloc(argc, sizeof(zval)) : NULL;
+    if (params && argv && Z_TYPE_P(argv) == IS_ARRAY) {
+        uint32_t i = 0;
+        zval *v;
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(argv), v) {
+            if (i >= argc) break;
+            gcd_zval_copy(&params[i], v, 0);
+            i++;
+        } ZEND_HASH_FOREACH_END();
+    }
+
+    zend_function func;
+    memset(&func, 0, sizeof(func));
+    func.type = ZEND_USER_FUNCTION;
+    func.op_array = *oa;
+    void **cache = func.op_array.cache_size ? ecalloc(1, func.op_array.cache_size) : NULL;
+    ZEND_MAP_PTR_INIT(func.op_array.run_time_cache, cache);
+
+    /* Wrap as a fake closure (does not own/free the persistent op_array) so the
+     * closure calling convention applies and exceptions return to the caller. */
+    zval closure_zv;
+    zend_create_fake_closure(&closure_zv, &func, NULL, NULL, NULL);
+
+    zval retval;
+    ZVAL_UNDEF(&retval);
+    zend_fcall_info fci;
+    zend_fcall_info_cache fcc;
+    memset(&fci, 0, sizeof(fci));
+    memset(&fcc, 0, sizeof(fcc));
+    fci.size = sizeof(fci);
+    ZVAL_COPY_VALUE(&fci.function_name, &closure_zv);
+    fci.retval = &retval;
+    fci.param_count = argc;
+    fci.params = params;
+    zend_is_callable_ex(&closure_zv, NULL, 0, NULL, &fcc, NULL);
+
+    /* Worker threads have no running PHP frame; give the call a caller frame so
+     * a thrown exception returns here instead of being treated as uncaught. */
+    zend_execute_data *prev_ex = EG(current_execute_data);
+    zend_execute_data dummy_ex;
+    memset(&dummy_ex, 0, sizeof(dummy_ex));
+    dummy_ex.prev_execute_data = prev_ex;
+    EG(current_execute_data) = &dummy_ex;
+
+    zend_call_function(&fci, &fcc);
+    int failed = EG(exception) != NULL;   /* caller handles/clears exception */
+
+    EG(current_execute_data) = prev_ex;
+    zval_ptr_dtor(&retval);
+    zval_ptr_dtor(&closure_zv);
+    if (params) {
+        for (uint32_t i = 0; i < argc; i++) zval_ptr_dtor(&params[i]);
+        efree(params);
+    }
+    if (cache) efree(cache);
+    return failed;
+}
+
 void gcd_task_execute(gcd_task *t)
 {
     gcd_queue *q = t->queue;
@@ -51,52 +112,10 @@ void gcd_task_execute(gcd_task *t)
         pthread_mutex_unlock(&q->width_mutex);
     }
 
-    /* request-local argv copies */
-    zval *params = t->argc ? ecalloc(t->argc, sizeof(zval)) : NULL;
-    if (params && Z_TYPE(t->argv) == IS_ARRAY) {
-        uint32_t i = 0;
-        zval *v;
-        ZEND_HASH_FOREACH_VAL(Z_ARRVAL(t->argv), v) {
-            if (i >= t->argc) break;
-            gcd_zval_copy(&params[i], v, 0);
-            i++;
-        } ZEND_HASH_FOREACH_END();
+    t->failed = gcd_invoke(t->op_array, &t->argv, t->argc);
+    if (t->failed) {
+        gcd_error_report(t);   /* reads EG(exception), reports, clears */
     }
-
-    zend_function func;
-    memset(&func, 0, sizeof(func));
-    func.type = ZEND_USER_FUNCTION;
-    func.op_array = *t->op_array;
-    void **cache = func.op_array.cache_size ? ecalloc(1, func.op_array.cache_size) : NULL;
-    ZEND_MAP_PTR_INIT(func.op_array.run_time_cache, cache);
-    /* Treat as a plain user function: ZEND_ACC_CLOSURE would make the executor
-     * derive a closure object pointer from the op_array address (invalid here). */
-    func.common.fn_flags &= ~ZEND_ACC_CLOSURE;
-
-    zval retval;
-    ZVAL_UNDEF(&retval);
-    zend_fcall_info fci;
-    zend_fcall_info_cache fcc;
-    memset(&fci, 0, sizeof(fci));
-    memset(&fcc, 0, sizeof(fcc));
-    fci.size = sizeof(fci);
-    ZVAL_UNDEF(&fci.function_name);
-    fci.retval = &retval;
-    fci.param_count = t->argc;
-    fci.params = params;
-    fcc.function_handler = &func;
-
-    zend_call_function(&fci, &fcc);
-    if (EG(exception)) {
-        t->failed = 1;
-        zend_clear_exception();
-    }
-    zval_ptr_dtor(&retval);
-    if (params) {
-        for (uint32_t i = 0; i < t->argc; i++) zval_ptr_dtor(&params[i]);
-        efree(params);
-    }
-    if (cache) efree(cache);
 
     if (gated) {
         pthread_mutex_lock(&q->width_mutex);

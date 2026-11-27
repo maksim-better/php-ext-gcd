@@ -17,6 +17,7 @@ if test "$PHP_GCD" != "no"; then
     src/runtime/copy.c \
     src/runtime/task.c \
     src/runtime/thread_pool.c \
+    src/runtime/error.c \
     src/queue/queue.c \
     src/queue/dispatch.c \
     src/queue/group.c \

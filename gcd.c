@@ -10,6 +10,7 @@
 #include "src/queue/once.h"
 #include "src/runtime/thread_pool.h"
 #include "src/runtime/php_context.h"
+#include "src/runtime/error.h"
 #include "src/container/atomic.h"
 #include "src/container/cqueue.h"
 #include "src/container/set.h"
@@ -21,6 +22,7 @@ TSRMLS_CACHE_DEFINE();
 PHP_MINIT_FUNCTION(gcd)
 {
     gcd_context_capture_parent();
+    gcd_error_minit();
     gcd_queue_minit();
     gcd_group_minit();
     gcd_semaphore_minit();
@@ -116,6 +118,15 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_queue_get_specific, 0, 0, 2)
     ZEND_ARG_INFO(0, key)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_set_error_handler, 0, 0, 1)
+    ZEND_ARG_INFO(0, handler)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_queue_set_error_handler, 0, 0, 2)
+    ZEND_ARG_INFO(0, queue)
+    ZEND_ARG_INFO(0, handler)
+ZEND_END_ARG_INFO()
+
 static const zend_function_entry gcd_functions[] = {
     ZEND_NS_FE("GCD", queue_create, arginfo_gcd_queue_create)
     ZEND_NS_FE("GCD", global_queue, arginfo_gcd_global_queue)
@@ -123,6 +134,8 @@ static const zend_function_entry gcd_functions[] = {
     ZEND_NS_FE("GCD", queue_resume, arginfo_gcd_group_one)
     ZEND_NS_FE("GCD", queue_set_specific, arginfo_gcd_queue_set_specific)
     ZEND_NS_FE("GCD", queue_get_specific, arginfo_gcd_queue_get_specific)
+    ZEND_NS_FE("GCD", queue_set_error_handler, arginfo_gcd_queue_set_error_handler)
+    ZEND_NS_FE("GCD", set_error_handler, arginfo_gcd_set_error_handler)
     ZEND_NS_FE("GCD", sync, arginfo_gcd_dispatch)
     ZEND_NS_FE("GCD", async, arginfo_gcd_dispatch)
     ZEND_NS_FE("GCD", barrier_async, arginfo_gcd_dispatch)
