@@ -9,11 +9,14 @@
 #include <time.h>
 #include <poll.h>
 #include <signal.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 #define GCD_SOURCE_TIMER 1
 #define GCD_SOURCE_SIGNAL 2
 #define GCD_SOURCE_READ 3
 #define GCD_SOURCE_WRITE 4
+#define GCD_SOURCE_PROC 5
 
 typedef struct {
     int type;
@@ -79,6 +82,16 @@ static void *source_thread(void *arg)
             if (sigwait(&mask, &sig) == 0 && !s->cancelled) {
                 dispatch_handler(s);
             }
+        }
+    } else if (s->type == GCD_SOURCE_PROC) {
+        while (!s->cancelled) {
+            int status;
+            pid_t r = waitpid(s->handle, &status, WNOHANG);
+            if (r == s->handle) {
+                dispatch_handler(s);
+                break;
+            }
+            usleep(10000);
         }
     } else { /* READ / WRITE */
         struct pollfd pfd;
@@ -149,7 +162,8 @@ PHP_FUNCTION(source_create)
         Z_PARAM_OBJECT(qobj)
     ZEND_PARSE_PARAMETERS_END();
     if (type != GCD_SOURCE_TIMER && type != GCD_SOURCE_SIGNAL
-        && type != GCD_SOURCE_READ && type != GCD_SOURCE_WRITE) {
+        && type != GCD_SOURCE_READ && type != GCD_SOURCE_WRITE
+        && type != GCD_SOURCE_PROC) {
         zend_throw_exception(zend_ce_value_error, "unsupported source type in v1", 0);
         RETURN_THROWS();
     }
@@ -260,4 +274,5 @@ void gcd_source_minit(void)
     zend_register_long_constant("GCD\\SOURCE_SIGNAL", sizeof("GCD\\SOURCE_SIGNAL") - 1, GCD_SOURCE_SIGNAL, CONST_CS | CONST_PERSISTENT, 0);
     zend_register_long_constant("GCD\\SOURCE_READ", sizeof("GCD\\SOURCE_READ") - 1, GCD_SOURCE_READ, CONST_CS | CONST_PERSISTENT, 0);
     zend_register_long_constant("GCD\\SOURCE_WRITE", sizeof("GCD\\SOURCE_WRITE") - 1, GCD_SOURCE_WRITE, CONST_CS | CONST_PERSISTENT, 0);
+    zend_register_long_constant("GCD\\SOURCE_PROC", sizeof("GCD\\SOURCE_PROC") - 1, GCD_SOURCE_PROC, CONST_CS | CONST_PERSISTENT, 0);
 }
