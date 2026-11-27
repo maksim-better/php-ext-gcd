@@ -20,5 +20,7 @@ if test "$PHP_GCD" != "no"; then
     src/queue/queue.c \
     src/queue/dispatch.c \
     src/container/atomic.c \
-    src/container/cqueue.c, $ext_shared)
+    src/container/cqueue.c \
+    src/container/set.c \
+    src/container/map.c, $ext_shared)
 fi
