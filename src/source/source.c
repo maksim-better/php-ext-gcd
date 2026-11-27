@@ -7,11 +7,17 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <time.h>
+#include <poll.h>
+#include <signal.h>
 
 #define GCD_SOURCE_TIMER 1
+#define GCD_SOURCE_SIGNAL 2
+#define GCD_SOURCE_READ 3
+#define GCD_SOURCE_WRITE 4
 
 typedef struct {
     int type;
+    int handle;                 /* fd (read/write) or signo (signal) */
     zend_op_array *handler;     /* persistent, source-owned */
     gcd_queue *queue;
     double start, interval;
@@ -42,20 +48,48 @@ static void sleep_sec(double s)
     nanosleep(&ts, NULL);
 }
 
+static void dispatch_handler(gcd_source *s)
+{
+    if (s->handler && s->queue) {
+        gcd_task *t = gcd_task_create(s->handler, NULL, 0);
+        t->owns_oa = 0;          /* handler owned by source */
+        t->queue = s->queue;
+        t->is_sync = 0;
+        if (s->queue->width == 1) gcd_queue_enqueue(s->queue, t);
+        else gcd_pool_submit(t);
+    }
+}
+
 static void *source_thread(void *arg)
 {
     gcd_source *s = arg;
-    sleep_sec(s->start);
-    while (!s->cancelled) {
-        if (s->handler && s->queue) {
-            gcd_task *t = gcd_task_create(s->handler, NULL, 0);
-            t->owns_oa = 0;          /* handler owned by source */
-            t->queue = s->queue;
-            t->is_sync = 0;
-            if (s->queue->width == 1) gcd_queue_enqueue(s->queue, t);
-            else gcd_pool_submit(t);
+    if (s->type == GCD_SOURCE_TIMER) {
+        sleep_sec(s->start);
+        while (!s->cancelled) {
+            dispatch_handler(s);
+            sleep_sec(s->interval);
         }
-        sleep_sec(s->interval);
+    } else if (s->type == GCD_SOURCE_SIGNAL) {
+        sigset_t mask;
+        sigemptyset(&mask);
+        sigaddset(&mask, s->handle);
+        pthread_sigmask(SIG_BLOCK, &mask, NULL);
+        int sig;
+        while (!s->cancelled) {
+            if (sigwait(&mask, &sig) == 0 && !s->cancelled) {
+                dispatch_handler(s);
+            }
+        }
+    } else { /* READ / WRITE */
+        struct pollfd pfd;
+        pfd.fd = s->handle;
+        pfd.events = (s->type == GCD_SOURCE_READ) ? POLLIN : POLLOUT;
+        while (!s->cancelled) {
+            int rc = poll(&pfd, 1, 100);
+            if (rc > 0 && (pfd.revents & pfd.events)) {
+                dispatch_handler(s);
+            }
+        }
     }
     return NULL;
 }
@@ -77,6 +111,9 @@ static void source_free_object(zend_object *object)
     if (o->s) {
         if (o->s->running) {
             o->s->cancelled = 1;
+            if (o->s->type == GCD_SOURCE_SIGNAL) {
+                pthread_kill(o->s->thread, o->s->handle);
+            }
             pthread_join(o->s->thread, NULL);
         }
         if (o->s->handler) gcd_op_array_free_persistent(o->s->handler);
@@ -111,13 +148,15 @@ PHP_FUNCTION(source_create)
         Z_PARAM_LONG(mask)
         Z_PARAM_OBJECT(qobj)
     ZEND_PARSE_PARAMETERS_END();
-    if (type != GCD_SOURCE_TIMER) {
-        zend_throw_exception(zend_ce_value_error, "only SOURCE_TIMER supported in v1", 0);
+    if (type != GCD_SOURCE_TIMER && type != GCD_SOURCE_SIGNAL
+        && type != GCD_SOURCE_READ && type != GCD_SOURCE_WRITE) {
+        zend_throw_exception(zend_ce_value_error, "unsupported source type in v1", 0);
         RETURN_THROWS();
     }
     object_init_ex(return_value, gcd_source_ce);
     gcd_source *s = source_fetch(Z_OBJ_P(return_value))->s;
     s->type = (int) type;
+    s->handle = (int) handle;
     s->queue = qobj ? gcd_queue_from_zval(qobj) : NULL;
 }
 
@@ -177,6 +216,14 @@ PHP_FUNCTION(source_resume)
     gcd_source *s = source_from_zval(sobj);
     if (!s) { zend_throw_exception(zend_ce_type_error, "expected GCD\\Source", 0); RETURN_THROWS(); }
     if (!s->running) {
+        if (s->type == GCD_SOURCE_SIGNAL) {
+            /* block in calling thread so spawned workers inherit the mask and
+             * the signal is routed to sigwait rather than default action */
+            sigset_t mask;
+            sigemptyset(&mask);
+            sigaddset(&mask, s->handle);
+            pthread_sigmask(SIG_BLOCK, &mask, NULL);
+        }
         s->cancelled = 0;
         s->running = 1;
         pthread_create(&s->thread, NULL, source_thread, s);
@@ -191,6 +238,9 @@ PHP_FUNCTION(source_cancel)
     if (!s) { zend_throw_exception(zend_ce_type_error, "expected GCD\\Source", 0); RETURN_THROWS(); }
     if (s->running) {
         s->cancelled = 1;
+        if (s->type == GCD_SOURCE_SIGNAL) {
+            pthread_kill(s->thread, s->handle);   /* wake sigwait */
+        }
         pthread_join(s->thread, NULL);
         s->running = 0;
     }
@@ -207,4 +257,7 @@ void gcd_source_minit(void)
     source_handlers.free_obj = source_free_object;
 
     zend_register_long_constant("GCD\\SOURCE_TIMER", sizeof("GCD\\SOURCE_TIMER") - 1, GCD_SOURCE_TIMER, CONST_CS | CONST_PERSISTENT, 0);
+    zend_register_long_constant("GCD\\SOURCE_SIGNAL", sizeof("GCD\\SOURCE_SIGNAL") - 1, GCD_SOURCE_SIGNAL, CONST_CS | CONST_PERSISTENT, 0);
+    zend_register_long_constant("GCD\\SOURCE_READ", sizeof("GCD\\SOURCE_READ") - 1, GCD_SOURCE_READ, CONST_CS | CONST_PERSISTENT, 0);
+    zend_register_long_constant("GCD\\SOURCE_WRITE", sizeof("GCD\\SOURCE_WRITE") - 1, GCD_SOURCE_WRITE, CONST_CS | CONST_PERSISTENT, 0);
 }
