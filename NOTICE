@@ -1,0 +1,12 @@
+ext-gcd
+Copyright 2026 The ext-gcd authors
+
+This product includes PHP software, freely available from
+<http://www.php.net/software/>.
+
+Portions of the GCD queue / event-source design are inspired by
+swift-corelibs-libdispatch
+(https://github.com/swiftlang/swift-corelibs-libdispatch), licensed under
+the Apache License, Version 2.0. If any source code is borrowed from that
+project, the Apache-2.0 license notices and NOTICE file must be retained
+here, and any changes must be stated.
