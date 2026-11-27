@@ -13,6 +13,7 @@ if test "$PHP_GCD" != "no"; then
 
   AC_DEFINE(HAVE_GCD, 1, [Whether you have gcd support])
   PHP_NEW_EXTENSION(gcd, gcd.c \
+    src/loop.c \
     src/runtime/php_context.c \
     src/runtime/copy.c \
     src/runtime/task.c \

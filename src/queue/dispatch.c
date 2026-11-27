@@ -40,6 +40,7 @@ PHP_FUNCTION(sync)
 
     if (q->width == 1) gcd_queue_enqueue(q, t); else gcd_pool_submit(t);
     gcd_task_wait(t);
+    gcd_pool_task_done();
     gcd_task_destroy(t);
     RETURN_NULL();
 }
@@ -106,6 +107,7 @@ PHP_FUNCTION(barrier_sync)
     t->is_barrier = 1;
     if (q->width == 1) gcd_queue_enqueue(q, t); else gcd_pool_submit(t);
     gcd_task_wait(t);
+    gcd_pool_task_done();
     gcd_task_destroy(t);
     RETURN_NULL();
 }

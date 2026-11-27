@@ -6,5 +6,8 @@
 /* Lazily-initialized global worker pool. Each worker boots one PHP context. */
 void gcd_pool_submit(gcd_task *t);
 void gcd_pool_shutdown(void);
+void gcd_pool_pending_inc(void);
+void gcd_pool_task_done(void);
+void gcd_pool_drain(double timeout);
 
 #endif

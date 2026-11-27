@@ -161,6 +161,7 @@ static void submit_drain_job(gcd_queue *q)
 
 void gcd_queue_enqueue(gcd_queue *q, gcd_task *t)
 {
+    gcd_pool_pending_inc();
     pthread_mutex_lock(&q->list_mutex);
     t->next = NULL;
     if (q->tail) q->tail->next = t; else q->head = t;

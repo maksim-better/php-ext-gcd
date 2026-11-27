@@ -1,6 +1,7 @@
 #include "task.h"
 #include "copy.h"
 #include "error.h"
+#include "thread_pool.h"
 #include "../queue/queue.h"
 #include "../queue/group.h"
 #include <Zend/zend_execute.h>
@@ -140,6 +141,7 @@ void gcd_task_execute(gcd_task *t)
         pthread_mutex_unlock(&t->mutex);
     } else {
         if (t->group) gcd_group_leave(t->group);
+        gcd_pool_task_done();
         gcd_task_destroy(t);
     }
 }

@@ -2,8 +2,15 @@
 #include "php_context.h"
 #include "../queue/queue.h"
 #include <stdlib.h>
+#include <stdatomic.h>
+#include <time.h>
+#include <errno.h>
 
 #define GCD_POOL_DEFAULT_SIZE 4
+
+static atomic_long g_pending;
+static pthread_mutex_t g_pending_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t g_pending_cond = PTHREAD_COND_INITIALIZER;
 
 static pthread_t *g_threads;
 static int g_size;
@@ -82,6 +89,7 @@ static void pool_init(void)
 void gcd_pool_submit(gcd_task *t)
 {
     pool_init();
+    if (t->op_array) atomic_fetch_add(&g_pending, 1);
     pthread_mutex_lock(&g_mutex);
     t->next = NULL;
     if (g_tail) g_tail->next = t; else g_head = t;
@@ -102,4 +110,40 @@ void gcd_pool_shutdown(void)
     }
     free(g_threads);
     g_inited = 0;
+}
+
+void gcd_pool_pending_inc(void)
+{
+    atomic_fetch_add(&g_pending, 1);
+}
+
+void gcd_pool_task_done(void)
+{
+    long old = atomic_fetch_sub(&g_pending, 1);
+    if (old == 1) {
+        pthread_mutex_lock(&g_pending_mutex);
+        pthread_cond_broadcast(&g_pending_cond);
+        pthread_mutex_unlock(&g_pending_mutex);
+    }
+}
+
+void gcd_pool_drain(double timeout)
+{
+    pthread_mutex_lock(&g_pending_mutex);
+    while (atomic_load(&g_pending) > 0) {
+        if (timeout == 0) {
+            break;
+        } else if (timeout < 0) {
+            pthread_cond_wait(&g_pending_cond, &g_pending_mutex);
+        } else {
+            struct timespec ts;
+            clock_gettime(CLOCK_REALTIME, &ts);
+            ts.tv_sec += (time_t) timeout;
+            ts.tv_nsec += (long) ((timeout - (time_t) timeout) * 1e9);
+            if (ts.tv_nsec >= 1000000000) { ts.tv_sec++; ts.tv_nsec -= 1000000000; }
+            int rc = pthread_cond_timedwait(&g_pending_cond, &g_pending_mutex, &ts);
+            if (rc == ETIMEDOUT) break;
+        }
+    }
+    pthread_mutex_unlock(&g_pending_mutex);
 }
