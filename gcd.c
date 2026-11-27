@@ -7,6 +7,7 @@
 #include "src/queue/dispatch.h"
 #include "src/queue/group.h"
 #include "src/queue/semaphore.h"
+#include "src/queue/once.h"
 #include "src/runtime/thread_pool.h"
 #include "src/runtime/php_context.h"
 #include "src/container/atomic.h"
@@ -23,6 +24,7 @@ PHP_MINIT_FUNCTION(gcd)
     gcd_queue_minit();
     gcd_group_minit();
     gcd_semaphore_minit();
+    gcd_once_minit();
     gcd_atomic_minit();
     gcd_cqueue_minit();
     gcd_set_minit();
@@ -98,6 +100,11 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_sem_signal, 0, 0, 1)
     ZEND_ARG_INFO(0, semaphore)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_once, 0, 0, 2)
+    ZEND_ARG_INFO(0, key)
+    ZEND_ARG_INFO(0, task)
+ZEND_END_ARG_INFO()
+
 static const zend_function_entry gcd_functions[] = {
     ZEND_NS_FE("GCD", queue_create, arginfo_gcd_queue_create)
     ZEND_NS_FE("GCD", global_queue, arginfo_gcd_global_queue)
@@ -112,6 +119,7 @@ static const zend_function_entry gcd_functions[] = {
     ZEND_NS_FE("GCD", semaphore_open, arginfo_gcd_sem_open)
     ZEND_NS_FE("GCD", semaphore_wait, arginfo_gcd_sem_wait)
     ZEND_NS_FE("GCD", semaphore_signal, arginfo_gcd_sem_signal)
+    ZEND_NS_FE("GCD", once, arginfo_gcd_once)
     PHP_FE_END
 };
 

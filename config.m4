@@ -21,6 +21,7 @@ if test "$PHP_GCD" != "no"; then
     src/queue/dispatch.c \
     src/queue/group.c \
     src/queue/semaphore.c \
+    src/queue/once.c \
     src/container/atomic.c \
     src/container/cqueue.c \
     src/container/set.c \
