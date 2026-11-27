@@ -2,7 +2,7 @@
 #include "../queue/queue.h"
 #include <Zend/zend_exceptions.h>
 #include <ext/standard/php_var.h>
-#include <ext/standard/php_smart_string.h>
+#include <Zend/zend_smart_str.h>
 #include <pthread.h>
 #include <stdlib.h>
 
