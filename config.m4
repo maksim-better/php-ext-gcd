@@ -28,5 +28,6 @@ if test "$PHP_GCD" != "no"; then
     src/container/cqueue.c \
     src/container/set.c \
     src/container/map.c \
-    src/source/source.c, $ext_shared)
+    src/source/source.c \
+    src/io/data.c, $ext_shared)
 fi

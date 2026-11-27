@@ -13,6 +13,7 @@
 #include "src/runtime/error.h"
 #include "src/loop.h"
 #include "src/source/source.h"
+#include "src/io/data.h"
 #include "src/container/atomic.h"
 #include "src/container/cqueue.h"
 #include "src/container/set.h"
@@ -30,6 +31,7 @@ PHP_MINIT_FUNCTION(gcd)
     gcd_semaphore_minit();
     gcd_once_minit();
     gcd_source_minit();
+    gcd_data_minit();
     gcd_atomic_minit();
     gcd_cqueue_minit();
     gcd_set_minit();
@@ -177,6 +179,24 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_qos_self, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_data_create, 0, 0, 1)
+    ZEND_ARG_INFO(0, bytes)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_data_concat, 0, 0, 1)
+    ZEND_ARG_VARIADIC_INFO(0, parts)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_data_subrange, 0, 0, 3)
+    ZEND_ARG_INFO(0, data)
+    ZEND_ARG_INFO(0, offset)
+    ZEND_ARG_INFO(0, length)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_data_map, 0, 0, 1)
+    ZEND_ARG_INFO(0, data)
+ZEND_END_ARG_INFO()
+
 static const zend_function_entry gcd_functions[] = {
     ZEND_NS_FE("GCD", queue_create, arginfo_gcd_queue_create)
     ZEND_NS_FE("GCD", global_queue, arginfo_gcd_global_queue)
@@ -198,6 +218,10 @@ static const zend_function_entry gcd_functions[] = {
     ZEND_NS_FE("GCD", queue_get_qos, arginfo_gcd_queue_get_qos)
     ZEND_NS_FE("GCD", queue_set_target, arginfo_gcd_queue_set_target)
     ZEND_NS_FE("GCD", qos_class_self, arginfo_gcd_qos_self)
+    ZEND_NS_FE("GCD", data_create, arginfo_gcd_data_create)
+    ZEND_NS_FE("GCD", data_concat, arginfo_gcd_data_concat)
+    ZEND_NS_FE("GCD", data_subrange, arginfo_gcd_data_subrange)
+    ZEND_NS_FE("GCD", data_create_map, arginfo_gcd_data_map)
     ZEND_NS_FE("GCD", sync, arginfo_gcd_dispatch)
     ZEND_NS_FE("GCD", async, arginfo_gcd_dispatch)
     ZEND_NS_FE("GCD", barrier_async, arginfo_gcd_dispatch)
