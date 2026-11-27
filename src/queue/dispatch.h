@@ -5,5 +5,7 @@
 
 PHP_FUNCTION(sync);
 PHP_FUNCTION(async);
+PHP_FUNCTION(barrier_sync);
+PHP_FUNCTION(barrier_async);
 
 #endif

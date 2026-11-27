@@ -22,6 +22,7 @@ gcd_task *gcd_task_create(zend_op_array *oa, zval *argv, uint32_t argc)
     t->queue = NULL;
     t->group = NULL;
     t->is_sync = 0;
+    t->is_barrier = 0;
     pthread_mutex_init(&t->mutex, NULL);
     pthread_cond_init(&t->cond, NULL);
     t->done = 0;
@@ -36,10 +37,17 @@ void gcd_task_execute(gcd_task *t)
     int gated = q && q->width > 1;
     if (gated) {
         pthread_mutex_lock(&q->width_mutex);
-        while (q->inflight >= q->width) {
-            pthread_cond_wait(&q->width_cond, &q->width_mutex);
+        if (t->is_barrier) {
+            while (q->inflight > 0) {
+                pthread_cond_wait(&q->width_cond, &q->width_mutex);
+            }
+            q->barrier_active = 1;
+        } else {
+            while (q->inflight >= q->width || q->barrier_active) {
+                pthread_cond_wait(&q->width_cond, &q->width_mutex);
+            }
+            q->inflight++;
         }
-        q->inflight++;
         pthread_mutex_unlock(&q->width_mutex);
     }
 
@@ -92,8 +100,12 @@ void gcd_task_execute(gcd_task *t)
 
     if (gated) {
         pthread_mutex_lock(&q->width_mutex);
-        q->inflight--;
-        pthread_cond_signal(&q->width_cond);
+        if (t->is_barrier) {
+            q->barrier_active = 0;
+        } else {
+            q->inflight--;
+        }
+        pthread_cond_broadcast(&q->width_cond);
         pthread_mutex_unlock(&q->width_mutex);
     }
 

@@ -110,6 +110,8 @@ static const zend_function_entry gcd_functions[] = {
     ZEND_NS_FE("GCD", global_queue, arginfo_gcd_global_queue)
     ZEND_NS_FE("GCD", sync, arginfo_gcd_dispatch)
     ZEND_NS_FE("GCD", async, arginfo_gcd_dispatch)
+    ZEND_NS_FE("GCD", barrier_async, arginfo_gcd_dispatch)
+    ZEND_NS_FE("GCD", barrier_sync, arginfo_gcd_dispatch)
     ZEND_NS_FE("GCD", group_create, arginfo_gcd_group_create)
     ZEND_NS_FE("GCD", group_enter, arginfo_gcd_group_one)
     ZEND_NS_FE("GCD", group_leave, arginfo_gcd_group_one)

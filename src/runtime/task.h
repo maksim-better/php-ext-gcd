@@ -11,6 +11,7 @@ typedef struct _gcd_task {
     struct _gcd_queue *queue;  /* owning queue (serial drain) */
     struct _gcd_group *group;  /* optional group (auto leave) */
     int is_sync;               /* 1: submitter waits+frees; 0: worker frees */
+    int is_barrier;            /* exclusive drain barrier */
     pthread_mutex_t mutex;
     pthread_cond_t cond;
     int done;
