@@ -178,6 +178,7 @@ gcd_task *gcd_task_build(zval *closure, zval *argv)
     uint32_t argc = 0;
     if (argv) {
         if (gcd_zval_copy_persistent(&pargv, argv) == FAILURE) {
+            gcd_zval_free(&pargv, 1);
             gcd_op_array_free_persistent(oa);
             zend_throw_exception(gcd_serialization_ce, "value is not serializable", 0);
             return NULL;

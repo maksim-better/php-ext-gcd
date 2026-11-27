@@ -11,5 +11,6 @@ void gcd_pool_task_done(void);
 void gcd_pool_drain(double timeout);
 void gcd_pool_block_source_signal(int signo);  /* add to process-wide source mask, wake workers */
 void gcd_pool_apply_source_mask(void);         /* block current source signals in calling thread */
+uint64_t gcd_pool_sig_gen(void);               /* current source-mask generation */
 
 #endif

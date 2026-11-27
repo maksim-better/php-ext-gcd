@@ -38,9 +38,21 @@ static zend_object *set_create_object(zend_class_entry *ce)
 static void set_free_object(zend_object *object) { zend_object_std_dtor(object); }
 
 /* serialize a value into a request-local key string */
+static int gcd_contains_resource(zval *v)
+{
+    if (Z_TYPE_P(v) == IS_RESOURCE) return 1;
+    if (Z_TYPE_P(v) == IS_ARRAY) {
+        zval *e;
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(v), e) {
+            if (gcd_contains_resource(e)) return 1;
+        } ZEND_HASH_FOREACH_END();
+    }
+    return 0;
+}
+
 static int make_key(zval *v, char **key, size_t *len)
 {
-    if (Z_TYPE_P(v) == IS_RESOURCE) {
+    if (gcd_contains_resource(v)) {
         zend_throw_exception(gcd_serialization_ce, "value is not serializable", 0);
         return FAILURE;
     }
@@ -48,8 +60,10 @@ static int make_key(zval *v, char **key, size_t *len)
     php_serialize_data_t sd = php_var_serialize_init();
     php_var_serialize(&buf, v, &sd);
     php_var_serialize_destroy(sd);
+    int failed = (EG(exception) != NULL) || !buf.s;
     if (EG(exception)) zend_clear_exception();
-    if (!buf.s) {
+    if (failed) {
+        if (buf.s) zend_string_release(buf.s);
         zend_throw_exception(gcd_serialization_ce, "value is not serializable", 0);
         return FAILURE;
     }

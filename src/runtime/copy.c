@@ -57,6 +57,9 @@ static int gcd_array_copy(zval *dst, HashTable *src, int persistent)
     ZEND_HASH_FOREACH_KEY_VAL(src, idx, key, val) {
         zval copy;
         if (gcd_zval_copy(&copy, val, persistent) == FAILURE) {
+            zend_hash_destroy(ht);
+            pefree(ht, persistent);
+            ZVAL_NULL(dst);
             return FAILURE;
         }
         if (key) {

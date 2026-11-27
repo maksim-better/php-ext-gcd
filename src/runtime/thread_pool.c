@@ -50,6 +50,11 @@ void gcd_pool_apply_source_mask(void)
     pthread_mutex_unlock(&g_mutex);
 }
 
+uint64_t gcd_pool_sig_gen(void)
+{
+    return (uint64_t) atomic_load(&g_sig_gen);
+}
+
 static void *worker_main(void *arg)
 {
     (void) arg;

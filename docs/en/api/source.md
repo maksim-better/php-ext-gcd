@@ -113,7 +113,7 @@ GCD\source_resume(GCD\Source $source): void
 
 **Errors** — `TypeError` ("expected GCD\Source") for a non-Source.
 
-**Notes** — Starts the watcher thread; resuming an already-running source is a no-op. For SIGNAL sources the signal is added to a process-wide mask applied to every worker and source thread, so delivery goes to `sigwait` regardless of when the pool was started. Source signals stay blocked for the life of the process.
+**Notes** — Starts the watcher thread; resuming an already-running source is a no-op. For SIGNAL sources the signal is added to a process-wide mask: source threads re-apply it continuously, and workers apply it between tasks. A signal arriving while a worker is mid-task can still be delivered before that worker re-masks, so arm signal sources while the pool is idle for a guarantee. Source signals stay blocked for the life of the process.
 
 **Example**
 

@@ -1,7 +1,7 @@
 --TEST--
 GCD signal source armed after pool boot does not kill the process (D3)
 --SKIPIF--
-<?php if (!extension_loaded("gcd")) die("skip gcd not loaded"); ?>
+<?php if (!extension_loaded("gcd")) die("skip gcd not loaded"); if (!function_exists('posix_kill') || !defined('SIGUSR1')) die("skip posix required"); ?>
 --FILE--
 <?php
 $q = GCD\queue_create('boot', 2);

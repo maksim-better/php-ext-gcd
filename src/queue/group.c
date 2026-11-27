@@ -87,6 +87,7 @@ void gcd_group_leave(gcd_group *g)
             } else if (n->handler) {
                 gcd_op_array_free_persistent(n->handler);
             }
+            if (n->q) gcd_queue_release(n->q);
             free(n);
             n = nx;
         }
@@ -112,6 +113,7 @@ void gcd_group_free(gcd_group *g)
     while (n) {
         struct gcd_notify *nx = n->next;
         if (n->handler) gcd_op_array_free_persistent(n->handler);
+        if (n->q) gcd_queue_release(n->q);
         free(n);
         n = nx;
     }
@@ -273,6 +275,7 @@ PHP_FUNCTION(group_notify)
     if (!copy) { zend_throw_exception(gcd_capture_ce, "notify closure unsupported in v1", 0); RETURN_THROWS(); }
     struct gcd_notify *n = malloc(sizeof(struct gcd_notify));
     n->q = q;
+    gcd_queue_retain(q);
     n->handler = copy;
     pthread_mutex_lock(&g->lock);
     n->next = g->notify_head;

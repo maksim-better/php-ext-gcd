@@ -113,7 +113,7 @@ GCD\source_resume(GCD\Source $source): void
 
 **错误与异常** —— 非 Source 抛 `TypeError`（"expected GCD\Source"）。
 
-**备注** —— 启动监视线程；重复 resume 无副作用。SIGNAL 源把信号加入进程级掩码，应用到每个 worker 与源线程，无论线程池何时启动，交付都走 `sigwait`。源信号在进程存续期间保持阻塞。
+**备注** —— 启动监视线程；重复 resume 无副作用。SIGNAL 源把信号加入进程级掩码：源线程持续重新应用，worker 在任务之间应用。信号若在 worker 执行任务途中到达，可能在其重新掩码前被交付，因此保证安全请在线程池空闲时启动信号源。源信号在进程存续期间保持阻塞。
 
 **示例**
 

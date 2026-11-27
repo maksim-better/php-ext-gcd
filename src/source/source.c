@@ -56,6 +56,25 @@ static void sleep_sec(double s)
     nanosleep(&ts, NULL);
 }
 
+/* Re-apply the process-wide source signal mask when its generation changes,
+ * so source threads armed before a SIGNAL source still block new signals. */
+static void source_remask(uint64_t *gen)
+{
+    uint64_t cur = gcd_pool_sig_gen();
+    if (*gen != cur) { gcd_pool_apply_source_mask(); *gen = cur; }
+}
+
+/* Sleep in small chunks, re-masking between chunks and stopping on cancel. */
+static void source_sleep(gcd_source *s, double sec, uint64_t *gen)
+{
+    while (sec > 0 && !atomic_load(&s->cancelled)) {
+        source_remask(gen);
+        double chunk = sec > 0.05 ? 0.05 : sec;
+        sleep_sec(chunk);
+        sec -= chunk;
+    }
+}
+
 static void dispatch_handler(gcd_source *s)
 {
     if (s->handler && s->queue) {
@@ -71,13 +90,15 @@ static void dispatch_handler(gcd_source *s)
 static void *source_thread(void *arg)
 {
     gcd_source *s = arg;
-    gcd_pool_apply_source_mask();
+    uint64_t gen = 0;
+    source_remask(&gen);
     if (s->type == GCD_SOURCE_TIMER) {
-        sleep_sec(s->start);
+        source_sleep(s, s->start, &gen);
         while (!atomic_load(&s->cancelled)) {
+            source_remask(&gen);
             dispatch_handler(s);
             if (s->interval <= 0) break;
-            sleep_sec(s->interval);
+            source_sleep(s, s->interval, &gen);
         }
     } else if (s->type == GCD_SOURCE_SIGNAL) {
         sigset_t mask;
@@ -86,12 +107,14 @@ static void *source_thread(void *arg)
         pthread_sigmask(SIG_BLOCK, &mask, NULL);
         int sig;
         while (!atomic_load(&s->cancelled)) {
+            source_remask(&gen);
             if (sigwait(&mask, &sig) == 0 && !atomic_load(&s->cancelled)) {
                 dispatch_handler(s);
             }
         }
     } else if (s->type == GCD_SOURCE_PROC) {
         while (!atomic_load(&s->cancelled)) {
+            source_remask(&gen);
             int status;
             pid_t r = waitpid(s->handle, &status, WNOHANG);
             if (r == s->handle) {
@@ -106,6 +129,7 @@ static void *source_thread(void *arg)
             while (atomic_load(&s->data) == 0 && !atomic_load(&s->cancelled)) {
                 pthread_cond_wait(&s->data_cond, &s->data_mutex);
             }
+            source_remask(&gen);
             if (atomic_load(&s->cancelled)) break;
             long d = atomic_exchange(&s->data, 0);
             pthread_mutex_unlock(&s->data_mutex);
@@ -134,6 +158,7 @@ static void *source_thread(void *arg)
         pfd.fd = s->handle;
         pfd.events = (s->type == GCD_SOURCE_READ) ? POLLIN : POLLOUT;
         while (!atomic_load(&s->cancelled)) {
+            source_remask(&gen);
             int rc = poll(&pfd, 1, 100);
             if (rc > 0 && (pfd.revents & pfd.events)) {
                 dispatch_handler(s);
@@ -177,6 +202,7 @@ static void source_free_object(zend_object *object)
         /* wait for borrowed-handler tasks to finish before freeing the handler */
         gcd_pool_drain(-1);
         if (o->s->handler) gcd_op_array_free_persistent(o->s->handler);
+        if (o->s->queue) gcd_queue_release(o->s->queue);
         pthread_mutex_destroy(&o->s->data_mutex);
         pthread_cond_destroy(&o->s->data_cond);
         free(o->s);
@@ -221,6 +247,7 @@ PHP_FUNCTION(source_create)
     s->type = (int) type;
     s->handle = (int) handle;
     s->queue = qobj ? gcd_queue_from_zval(qobj) : NULL;
+    if (s->queue) gcd_queue_retain(s->queue);
 }
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_source_handler, 0, 0, 2)

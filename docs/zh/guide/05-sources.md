@@ -26,7 +26,7 @@ echo ($n >= 3 && $n <= 12) ? 'timer-ok' : "bad:$n";
 
 ## 信号
 
-SIGNAL 源在专用线程上经 `sigwait` 交付。`source_resume` 把信号加入进程级掩码，应用到每个 worker 与源线程，因此线程池启动后再启动源也安全。源信号在进程存续期间保持阻塞。示例使用 ext-posix：
+SIGNAL 源在专用线程上经 `sigwait` 交付。`source_resume` 把信号加入进程级掩码：源线程持续重新应用，worker 在任务之间应用。信号若在任务途中到达，仍可能在忙 worker 重新掩码前被交付，因此保证安全请在线程池空闲时启动信号源。源信号在进程存续期间保持阻塞。示例使用 ext-posix：
 
 ```php
 $q = GCD\queue_create('w', 2);

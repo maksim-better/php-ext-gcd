@@ -4,7 +4,7 @@
 
 ## The Data class
 
-`GCD\Data` is an immutable byte buffer with one method, `size(): int`. Create instances with `data_create`, `data_concat` or `data_subrange`; read bytes back with `data_create_map`. Buffers are binary-safe. A `GCD\Data` object cannot cross runtimes: passing it through `$argv` can crash the process, and containers reject it. To move bytes between threads, pass a string and call `data_create` inside the task.
+`GCD\Data` is an immutable byte buffer with one method, `size(): int`. Create instances with `data_create`, `data_concat` or `data_subrange`; read bytes back with `data_create_map`. Buffers are binary-safe. A `GCD\Data` object cannot cross runtimes: passing it through `$argv` throws `GCD\SerializationException`, and containers reject it. To move bytes between threads, pass a string and call `data_create` inside the task.
 
 ## data_create
 

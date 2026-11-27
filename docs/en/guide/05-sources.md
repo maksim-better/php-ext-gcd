@@ -26,7 +26,7 @@ Omit the interval (or pass <= 0) for a one-shot timer; pass a positive interval 
 
 ## Signals
 
-SIGNAL sources deliver via `sigwait` on a dedicated thread. `source_resume` adds the signal to a process-wide mask applied to every worker and source thread, so it is safe to arm sources after the pool has started. Source signals stay blocked for the life of the process. The example uses ext-posix:
+SIGNAL sources deliver via `sigwait` on a dedicated thread. `source_resume` adds the signal to a process-wide mask: source threads re-apply it continuously and workers apply it between tasks. A signal arriving mid-task can still reach a busy worker before it re-masks, so arm signal sources while the pool is idle for a guarantee. Source signals stay blocked for the life of the process. The example uses ext-posix:
 
 ```php
 $q = GCD\queue_create('w', 2);
