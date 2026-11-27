@@ -8,8 +8,10 @@ A PHP extension providing **GCD-style (Grand Central Dispatch) concurrency** on
 
 ## Requirements
 
-- **ZTS PHP 8.4** (pinned target; 8.2/8.3 also intended). NTS / FPM / Windows are
-  **not supported** — the extension rejects NTS builds at configure/compile time.
+- **ZTS PHP 8.4–8.6.** 8.6 verified locally (29/29 tests); 8.4 is the Docker
+  build target; 8.5 expected compatible but unverified; 8.2/8.3 not promised.
+  NTS / FPM / Windows are **not supported** — the extension rejects NTS builds
+  at configure/compile time.
 - Linux (epoll) or macOS (kqueue).
 - C toolchain: clang/gcc, autoconf, make, phpize.
 
@@ -24,7 +26,7 @@ docker/test.sh tests/                # run PHPT suite inside the ZTS image
 
 ## Build (native ZTS PHP)
 
-If you already have a ZTS PHP 8.4 (`php -i | grep 'Thread Safety'` => enabled):
+If you already have a ZTS PHP 8.4–8.6 (`php -i | grep 'Thread Safety'` => enabled):
 
 ```bash
 phpize && ./configure --enable-gcd && make
@@ -42,6 +44,11 @@ macOS CI builds ZTS PHP via `scripts/build-zts-macos.sh`.
 - Tasks are closures + serializable argv (no captured variables in v1).
 - Thread-safe shared containers: queue / set / atomic counter / map.
 - Dual main-loop model: `GCD\main()` (callback-driven) + `GCD\drain()` (manual loop).
+
+## Documentation
+
+Bilingual user documentation (API reference + task-oriented guides) lives in
+[`docs/`](docs/README.md): [English](docs/en/README.md) · [中文](docs/zh/README.md).
 
 ## License
 
