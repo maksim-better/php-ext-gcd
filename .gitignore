@@ -6,8 +6,7 @@
 # Spec Kit (speckit) 脚手架：模板、脚本、工作流、本地状态
 .specify/
 
-# AI 生成的规格文档（spec / plan / tasks 等）
-specs/
+# 规格文档（spec / plan / tasks / implement-log 等）纳入版本控制
 
 # 常见 AI 助手产物
 CLAUDE.md
