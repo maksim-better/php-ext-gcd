@@ -55,8 +55,11 @@ PHP_FUNCTION(sync)
     }
     gcd_task *t = build_task(closure, argv);
     if (!t) RETURN_THROWS();
+    gcd_queue *q = gcd_queue_from_zval(qobj);
+    t->queue = q;
+    t->is_sync = 1;
 
-    gcd_pool_submit(t);
+    if (q->width == 1) gcd_queue_enqueue(q, t); else gcd_pool_submit(t);
     gcd_task_wait(t);
     gcd_task_destroy(t);
     RETURN_NULL();
@@ -78,8 +81,10 @@ PHP_FUNCTION(async)
     }
     gcd_task *t = build_task(closure, argv);
     if (!t) RETURN_THROWS();
+    gcd_queue *q = gcd_queue_from_zval(qobj);
+    t->queue = q;
+    t->is_sync = 0;
 
-    gcd_pool_submit(t);
-    /* v1 minimal: async leaks task until pool drain; refined with queue lifecycle */
+    if (q->width == 1) gcd_queue_enqueue(q, t); else gcd_pool_submit(t);
     RETURN_NULL();
 }

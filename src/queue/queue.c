@@ -1,4 +1,6 @@
 #include "queue.h"
+#include "../runtime/task.h"
+#include "../runtime/thread_pool.h"
 #include <Zend/zend_exceptions.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,6 +23,7 @@ static zend_object *gcd_queue_create_object(zend_class_entry *ce)
     obj->q = calloc(1, sizeof(gcd_queue));
     obj->q->width = 1;
     pthread_mutex_init(&obj->q->drain_lock, NULL);
+    pthread_mutex_init(&obj->q->list_mutex, NULL);
     return &obj->std;
 }
 
@@ -29,6 +32,7 @@ static void gcd_queue_free_object(zend_object *object)
     gcd_queue_object *obj = gcd_queue_fetch(object);
     if (obj->q) {
         pthread_mutex_destroy(&obj->q->drain_lock);
+        pthread_mutex_destroy(&obj->q->list_mutex);
         free(obj->q->label);
         free(obj->q);
     }
@@ -98,4 +102,46 @@ PHP_FUNCTION(global_queue)
     gcd_queue *q = gcd_queue_from_zval(return_value);
     q->label = strdup("global");
     q->width = 64;
+}
+
+static void submit_drain_job(gcd_queue *q)
+{
+    gcd_task *job = pemalloc(sizeof(gcd_task), 1);
+    memset(job, 0, sizeof(*job));
+    job->op_array = NULL;   /* marks a drain job, not a closure task */
+    job->queue = q;
+    gcd_pool_submit(job);
+}
+
+void gcd_queue_enqueue(gcd_queue *q, gcd_task *t)
+{
+    pthread_mutex_lock(&q->list_mutex);
+    t->next = NULL;
+    if (q->tail) q->tail->next = t; else q->head = t;
+    q->tail = t;
+    int need = !q->draining;
+    if (need) q->draining = 1;
+    pthread_mutex_unlock(&q->list_mutex);
+    if (need) submit_drain_job(q);
+}
+
+void gcd_queue_drain(gcd_queue *q)
+{
+    pthread_mutex_lock(&q->drain_lock);
+    for (;;) {
+        pthread_mutex_lock(&q->list_mutex);
+        gcd_task *t = q->head;
+        if (t) { q->head = t->next; if (!q->head) q->tail = NULL; }
+        pthread_mutex_unlock(&q->list_mutex);
+        if (!t) break;
+        gcd_task_execute(t);   /* FIFO order under drain_lock */
+    }
+    pthread_mutex_unlock(&q->drain_lock);
+
+    pthread_mutex_lock(&q->list_mutex);
+    q->draining = 0;
+    int again = q->head != NULL;
+    if (again) q->draining = 1;
+    pthread_mutex_unlock(&q->list_mutex);
+    if (again) submit_drain_job(q);
 }

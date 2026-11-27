@@ -1,5 +1,6 @@
 #include "task.h"
 #include "copy.h"
+#include "../queue/queue.h"
 #include <Zend/zend_execute.h>
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_map_ptr.h>
@@ -16,6 +17,8 @@ gcd_task *gcd_task_create(zend_op_array *oa, zval *argv, uint32_t argc)
         ZVAL_NULL(&t->argv);
     }
     t->argc = argc;
+    t->queue = NULL;
+    t->is_sync = 0;
     pthread_mutex_init(&t->mutex, NULL);
     pthread_cond_init(&t->cond, NULL);
     t->done = 0;
@@ -73,10 +76,14 @@ void gcd_task_execute(gcd_task *t)
     }
     if (cache) efree(cache);
 
-    pthread_mutex_lock(&t->mutex);
-    t->done = 1;
-    pthread_cond_signal(&t->cond);
-    pthread_mutex_unlock(&t->mutex);
+    if (t->is_sync) {
+        pthread_mutex_lock(&t->mutex);
+        t->done = 1;
+        pthread_cond_signal(&t->cond);
+        pthread_mutex_unlock(&t->mutex);
+    } else {
+        gcd_task_destroy(t);
+    }
 }
 
 void gcd_task_wait(gcd_task *t)

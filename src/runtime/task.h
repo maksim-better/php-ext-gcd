@@ -8,6 +8,8 @@ typedef struct _gcd_task {
     zend_op_array *op_array;   /* persistent closure body */
     zval argv;                 /* persistent IS_ARRAY (or NULL) */
     uint32_t argc;
+    struct _gcd_queue *queue;  /* owning queue (serial drain) */
+    int is_sync;               /* 1: submitter waits+frees; 0: worker frees */
     pthread_mutex_t mutex;
     pthread_cond_t cond;
     int done;

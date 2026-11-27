@@ -1,5 +1,6 @@
 #include "thread_pool.h"
 #include "php_context.h"
+#include "../queue/queue.h"
 #include <stdlib.h>
 
 #define GCD_POOL_DEFAULT_SIZE 4
@@ -42,7 +43,12 @@ static void *worker_main(void *arg)
         if (!g_head) g_tail = NULL;
         pthread_mutex_unlock(&g_mutex);
 
-        gcd_task_execute(t);
+        if (t->op_array == NULL) {
+            gcd_queue_drain(t->queue);   /* serial drain job */
+            pefree(t, 1);
+        } else {
+            gcd_task_execute(t);
+        }
     }
     gcd_context_shutdown();
     return NULL;
