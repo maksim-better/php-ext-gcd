@@ -126,7 +126,7 @@ void gcd_task_execute(gcd_task *t)
     }
 
     gcd_queue *prev_cur = gcd_current_queue;
-    if (q && q->width == 1) gcd_current_queue = q;
+    if (q) gcd_current_queue = q;
     t->failed = gcd_invoke(t->op_array, &t->argv, t->argc);
     if (t->failed) {
         gcd_error_report(t);   /* reads EG(exception), reports, clears */
@@ -166,7 +166,7 @@ gcd_task *gcd_task_build(zval *closure, zval *argv)
     zend_op_array *oa = gcd_op_array_copy_persistent(src_oa);
     if (!oa) {
         zend_throw_exception(gcd_capture_ce,
-            "closure captures variables or uses statics/try-catch (unsupported in v1)", 0);
+            "closure captures variables or uses statics (unsupported in v1)", 0);
         return NULL;
     }
     zval pargv;
