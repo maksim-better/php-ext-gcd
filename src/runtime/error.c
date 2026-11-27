@@ -9,6 +9,10 @@ void gcd_error_set_global(zval *closure)
 {
     zend_op_array *src = (zend_op_array *) ((char *) Z_OBJ_P(closure) + sizeof(zend_object));
     zend_op_array *copy = gcd_op_array_copy_persistent(src);
+    if (!copy) {
+        zend_throw_exception(gcd_capture_ce, "handler closure unsupported in v1", 0);
+        return;
+    }
     if (g_error_handler) gcd_op_array_free_persistent(g_error_handler);
     g_error_handler = copy;
 }
@@ -18,7 +22,7 @@ void gcd_error_report(gcd_task *t)
     if (!EG(exception)) return;
     zend_object *ex = EG(exception);
     zval rv;
-    zval *msg = zend_read_property(zend_ce_exception, ex, "message", sizeof("message") - 1, 1, &rv);
+    zval *msg = zend_read_property(ex->ce, ex, "message", sizeof("message") - 1, 1, &rv);
     const char *msgstr = (msg && Z_TYPE_P(msg) == IS_STRING) ? Z_STRVAL_P(msg) : "";
     const char *cls = ZSTR_VAL(ex->ce->name);
 
@@ -54,6 +58,7 @@ PHP_FUNCTION(set_error_handler)
         RETURN_THROWS();
     }
     gcd_error_set_global(closure);
+    if (EG(exception)) RETURN_THROWS();
 }
 
 void gcd_error_minit(void) {}
