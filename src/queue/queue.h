@@ -43,6 +43,7 @@ void gcd_queue_drain(gcd_queue *q);
 
 PHP_FUNCTION(queue_create);
 PHP_FUNCTION(global_queue);
+PHP_FUNCTION(main_queue);
 PHP_FUNCTION(queue_suspend);
 PHP_FUNCTION(queue_resume);
 PHP_FUNCTION(queue_set_specific);

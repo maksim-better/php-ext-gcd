@@ -18,5 +18,6 @@ PHP_FUNCTION(group_enter);
 PHP_FUNCTION(group_leave);
 PHP_FUNCTION(group_wait);
 PHP_FUNCTION(group_async);
+PHP_FUNCTION(group_notify);
 
 #endif

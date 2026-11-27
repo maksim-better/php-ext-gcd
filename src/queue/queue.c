@@ -89,6 +89,28 @@ PHP_FUNCTION(current_queue)
     gcd_queue_wrap_borrowed(return_value, gcd_current_queue);
 }
 
+static gcd_queue *g_main_queue = NULL;
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_main_queue, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+PHP_FUNCTION(main_queue)
+{
+    ZEND_PARSE_PARAMETERS_NONE();
+    if (!g_main_queue) {
+        g_main_queue = calloc(1, sizeof(gcd_queue));
+        g_main_queue->width = 1;
+        g_main_queue->label = strdup("main");
+        g_main_queue->qos = -1;
+        pthread_mutex_init(&g_main_queue->drain_lock, NULL);
+        pthread_mutex_init(&g_main_queue->list_mutex, NULL);
+        pthread_mutex_init(&g_main_queue->width_mutex, NULL);
+        pthread_cond_init(&g_main_queue->width_cond, NULL);
+        zend_hash_init(&g_main_queue->specific, 4, NULL, specific_dtor, 1);
+    }
+    gcd_queue_wrap_borrowed(return_value, g_main_queue);
+}
+
 #define GCD_QOS_DEFAULT 2
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_queue_set_qos, 0, 0, 2)

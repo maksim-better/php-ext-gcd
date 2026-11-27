@@ -2,6 +2,7 @@
 #include "queue.h"
 #include "../runtime/task.h"
 #include "../runtime/thread_pool.h"
+#include "../runtime/copy.h"
 #include <Zend/zend_exceptions.h>
 #include <stdatomic.h>
 #include <pthread.h>
@@ -9,10 +10,17 @@
 #include <time.h>
 #include <errno.h>
 
+struct gcd_notify {
+    gcd_queue *q;
+    zend_op_array *handler;
+    struct gcd_notify *next;
+};
+
 struct _gcd_group {
     atomic_long count;
     pthread_mutex_t lock;
     pthread_cond_t cond;
+    struct gcd_notify *notify_head;
 };
 
 typedef struct {
@@ -34,11 +42,7 @@ static zend_object *group_create_object(zend_class_entry *ce)
     zend_object_std_init(&o->std, ce);
     object_properties_init(&o->std, ce);
     o->std.handlers = &group_handlers;
-    gcd_group *g = malloc(sizeof(gcd_group));
-    atomic_init(&g->count, 0);
-    pthread_mutex_init(&g->lock, NULL);
-    pthread_cond_init(&g->cond, NULL);
-    o->g = g;
+    o->g = gcd_group_new();
     return &o->std;
 }
 
@@ -46,9 +50,7 @@ static void group_free_object(zend_object *object)
 {
     gcd_group_object *o = group_fetch(object);
     if (o->g) {
-        pthread_mutex_destroy(&o->g->lock);
-        pthread_cond_destroy(&o->g->cond);
-        free(o->g);
+        gcd_group_free(o->g);
     }
     zend_object_std_dtor(object);
 }
@@ -65,6 +67,16 @@ void gcd_group_leave(gcd_group *g)
 {
     long old = atomic_fetch_sub(&g->count, 1);
     if (old == 1) {
+        for (struct gcd_notify *n = g->notify_head; n; n = n->next) {
+            if (n->handler && n->q) {
+                gcd_task *t = gcd_task_create(n->handler, NULL, 0);
+                t->owns_oa = 0;
+                t->queue = n->q;
+                t->is_sync = 0;
+                if (n->q->width == 1) gcd_queue_enqueue(n->q, t);
+                else gcd_pool_submit(t);
+            }
+        }
         pthread_mutex_lock(&g->lock);
         pthread_cond_broadcast(&g->cond);
         pthread_mutex_unlock(&g->lock);
@@ -77,11 +89,19 @@ gcd_group *gcd_group_new(void)
     atomic_init(&g->count, 0);
     pthread_mutex_init(&g->lock, NULL);
     pthread_cond_init(&g->cond, NULL);
+    g->notify_head = NULL;
     return g;
 }
 
 void gcd_group_free(gcd_group *g)
 {
+    struct gcd_notify *n = g->notify_head;
+    while (n) {
+        struct gcd_notify *nx = n->next;
+        if (n->handler) gcd_op_array_free_persistent(n->handler);
+        free(n);
+        n = nx;
+    }
     pthread_mutex_destroy(&g->lock);
     pthread_cond_destroy(&g->cond);
     free(g);
@@ -201,6 +221,33 @@ PHP_FUNCTION(group_async)
     t->is_sync = 0;
     t->group = g;
     if (q->width == 1) gcd_queue_enqueue(q, t); else gcd_pool_submit(t);
+}
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_group_notify, 0, 0, 3)
+    ZEND_ARG_INFO(0, group)
+    ZEND_ARG_INFO(0, queue)
+    ZEND_ARG_INFO(0, task)
+ZEND_END_ARG_INFO()
+
+PHP_FUNCTION(group_notify)
+{
+    zval *gobj, *qobj, *closure;
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+        Z_PARAM_OBJECT(gobj)
+        Z_PARAM_OBJECT(qobj)
+        Z_PARAM_OBJECT(closure)
+    ZEND_PARSE_PARAMETERS_END();
+    gcd_group *g = gcd_group_from_zval(gobj);
+    gcd_queue *q = gcd_queue_from_zval(qobj);
+    if (!g || !q) { zend_throw_exception(zend_ce_type_error, "expected GCD\\Group and GCD\\Queue", 0); RETURN_THROWS(); }
+    zend_op_array *src = (zend_op_array *) ((char *) Z_OBJ_P(closure) + sizeof(zend_object));
+    zend_op_array *copy = gcd_op_array_copy_persistent(src);
+    if (!copy) { zend_throw_exception(gcd_capture_ce, "notify closure unsupported in v1", 0); RETURN_THROWS(); }
+    struct gcd_notify *n = malloc(sizeof(struct gcd_notify));
+    n->q = q;
+    n->handler = copy;
+    n->next = g->notify_head;
+    g->notify_head = n;
 }
 
 void gcd_group_minit(void)

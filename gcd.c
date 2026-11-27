@@ -203,6 +203,15 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_apply, 0, 0, 3)
     ZEND_ARG_INFO(0, task)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_group_notify, 0, 0, 3)
+    ZEND_ARG_INFO(0, group)
+    ZEND_ARG_INFO(0, queue)
+    ZEND_ARG_INFO(0, task)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_main_queue, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
 static const zend_function_entry gcd_functions[] = {
     ZEND_NS_FE("GCD", queue_create, arginfo_gcd_queue_create)
     ZEND_NS_FE("GCD", global_queue, arginfo_gcd_global_queue)
@@ -238,6 +247,8 @@ static const zend_function_entry gcd_functions[] = {
     ZEND_NS_FE("GCD", group_leave, arginfo_gcd_group_one)
     ZEND_NS_FE("GCD", group_wait, arginfo_gcd_group_wait)
     ZEND_NS_FE("GCD", group_async, arginfo_gcd_group_async)
+    ZEND_NS_FE("GCD", group_notify, arginfo_gcd_group_notify)
+    ZEND_NS_FE("GCD", main_queue, arginfo_gcd_main_queue)
     ZEND_NS_FE("GCD", semaphore_create, arginfo_gcd_sem_create)
     ZEND_NS_FE("GCD", semaphore_open, arginfo_gcd_sem_open)
     ZEND_NS_FE("GCD", semaphore_wait, arginfo_gcd_sem_wait)
