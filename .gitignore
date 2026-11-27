@@ -20,6 +20,8 @@ GEMINI.md
 # PHP 扩展构建产物（phpize / autoconf / libtool）
 *.lo
 *.la
+*.dep
+libtool
 .libs/
 .deps/
 modules/
