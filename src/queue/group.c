@@ -72,6 +72,7 @@ void gcd_group_leave(gcd_group *g)
                 gcd_task *t = gcd_task_create(n->handler, NULL, 0);
                 t->owns_oa = 0;
                 t->queue = n->q;
+                gcd_queue_retain(n->q);
                 t->is_sync = 0;
                 if (n->q->width == 1) gcd_queue_enqueue(n->q, t);
                 else gcd_pool_submit(t);
@@ -218,6 +219,7 @@ PHP_FUNCTION(group_async)
     if (!t) RETURN_THROWS();
     atomic_fetch_add(&g->count, 1);
     t->queue = q;
+    gcd_queue_retain(q);
     t->is_sync = 0;
     t->group = g;
     if (q->width == 1) gcd_queue_enqueue(q, t); else gcd_pool_submit(t);
@@ -240,7 +242,8 @@ PHP_FUNCTION(group_notify)
     gcd_group *g = gcd_group_from_zval(gobj);
     gcd_queue *q = gcd_queue_from_zval(qobj);
     if (!g || !q) { zend_throw_exception(zend_ce_type_error, "expected GCD\\Group and GCD\\Queue", 0); RETURN_THROWS(); }
-    zend_op_array *src = (zend_op_array *) ((char *) Z_OBJ_P(closure) + sizeof(zend_object));
+    zend_op_array *src = gcd_get_closure_oa(closure);
+    if (!src) { zend_throw_exception(zend_ce_type_error, "notify must be a user-function Closure", 0); RETURN_THROWS(); }
     zend_op_array *copy = gcd_op_array_copy_persistent(src);
     if (!copy) { zend_throw_exception(gcd_capture_ce, "notify closure unsupported in v1", 0); RETURN_THROWS(); }
     struct gcd_notify *n = malloc(sizeof(struct gcd_notify));

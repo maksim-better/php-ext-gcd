@@ -28,6 +28,7 @@ static zend_object *gcd_queue_create_object(zend_class_entry *ce)
     obj->owns = 1;
     obj->q = calloc(1, sizeof(gcd_queue));
     obj->q->width = 1;
+    atomic_init(&obj->q->refcount, 1);
     pthread_mutex_init(&obj->q->drain_lock, NULL);
     pthread_mutex_init(&obj->q->list_mutex, NULL);
     pthread_mutex_init(&obj->q->width_mutex, NULL);
@@ -42,15 +43,28 @@ static void gcd_queue_free_object(zend_object *object)
 {
     gcd_queue_object *obj = gcd_queue_fetch(object);
     if (obj->q && obj->owns) {
-        pthread_mutex_destroy(&obj->q->drain_lock);
-        pthread_mutex_destroy(&obj->q->list_mutex);
-        pthread_mutex_destroy(&obj->q->width_mutex);
-        pthread_cond_destroy(&obj->q->width_cond);
-        zend_hash_destroy(&obj->q->specific);
-        free(obj->q->label);
-        free(obj->q);
+        gcd_queue_release(obj->q);
     }
     zend_object_std_dtor(object);
+}
+
+void gcd_queue_retain(gcd_queue *q)
+{
+    if (q) atomic_fetch_add(&q->refcount, 1);
+}
+
+void gcd_queue_release(gcd_queue *q)
+{
+    if (!q) return;
+    if (atomic_fetch_sub(&q->refcount, 1) == 1) {
+        pthread_mutex_destroy(&q->drain_lock);
+        pthread_mutex_destroy(&q->list_mutex);
+        pthread_mutex_destroy(&q->width_mutex);
+        pthread_cond_destroy(&q->width_cond);
+        zend_hash_destroy(&q->specific);
+        free(q->label);
+        free(q);
+    }
 }
 
 gcd_queue *gcd_queue_from_zval(zval *zv)
@@ -66,13 +80,7 @@ void gcd_queue_wrap_borrowed(zval *return_value, gcd_queue *q)
     object_init_ex(return_value, gcd_queue_ce);
     gcd_queue_object *obj = gcd_queue_fetch(Z_OBJ_P(return_value));
     if (obj->q && obj->owns) {
-        /* drop the auto-created queue, replace with borrowed */
-        pthread_mutex_destroy(&obj->q->drain_lock);
-        pthread_mutex_destroy(&obj->q->list_mutex);
-        pthread_mutex_destroy(&obj->q->width_mutex);
-        pthread_cond_destroy(&obj->q->width_cond);
-        zend_hash_destroy(&obj->q->specific);
-        free(obj->q);
+        gcd_queue_release(obj->q);   /* drop auto-created queue */
     }
     obj->q = q;
     obj->owns = 0;
@@ -100,6 +108,7 @@ PHP_FUNCTION(main_queue)
     if (!g_main_queue) {
         g_main_queue = calloc(1, sizeof(gcd_queue));
         g_main_queue->width = 1;
+        atomic_init(&g_main_queue->refcount, 1);
         g_main_queue->label = strdup("main");
         g_main_queue->qos = -1;
         pthread_mutex_init(&g_main_queue->drain_lock, NULL);
@@ -163,6 +172,10 @@ PHP_FUNCTION(queue_set_target)
     gcd_queue *q = gcd_queue_from_zval(qobj);
     gcd_queue *t = gcd_queue_from_zval(tobj);
     if (!q || !t) { zend_throw_exception(zend_ce_type_error, "expected GCD\\Queue", 0); RETURN_THROWS(); }
+    if (q == t) { zend_throw_exception(zend_ce_value_error, "queue cannot target itself", 0); RETURN_THROWS(); }
+    for (gcd_queue *cur = t; cur; cur = cur->target) {
+        if (cur == q) { zend_throw_exception(zend_ce_value_error, "target queue cycle", 0); RETURN_THROWS(); }
+    }
     q->target = t;
 }
 
@@ -251,6 +264,7 @@ static void submit_drain_job(gcd_queue *q)
     memset(job, 0, sizeof(*job));
     job->op_array = NULL;   /* marks a drain job, not a closure task */
     job->queue = q;
+    gcd_queue_retain(q);    /* drain job holds a reference */
     gcd_pool_submit(job);
 }
 
@@ -281,6 +295,11 @@ void gcd_queue_drain(gcd_queue *q)
         if (t) { q->head = t->next; if (!q->head) q->tail = NULL; }
         pthread_mutex_unlock(&q->list_mutex);
         if (!t) break;
+        pthread_mutex_lock(&q->width_mutex);
+        while (q->suspended) {
+            pthread_cond_wait(&q->width_cond, &q->width_mutex);
+        }
+        pthread_mutex_unlock(&q->width_mutex);
         gcd_task_execute(t);   /* FIFO order under drain_lock */
     }
     pthread_mutex_unlock(&q->drain_lock);
@@ -388,7 +407,8 @@ PHP_FUNCTION(queue_set_error_handler)
     ZEND_PARSE_PARAMETERS_END();
     gcd_queue *q = gcd_queue_from_zval(qobj);
     if (!q) { zend_throw_exception(zend_ce_type_error, "expected GCD\\Queue", 0); RETURN_THROWS(); }
-    zend_op_array *src = (zend_op_array *) ((char *) Z_OBJ_P(closure) + sizeof(zend_object));
+    zend_op_array *src = gcd_get_closure_oa(closure);
+    if (!src) { zend_throw_exception(zend_ce_type_error, "handler must be a user-function Closure", 0); RETURN_THROWS(); }
     zend_op_array *copy = gcd_op_array_copy_persistent(src);
     if (!copy) {
         zend_throw_exception(gcd_capture_ce, "handler closure unsupported in v1", 0);

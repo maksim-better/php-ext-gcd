@@ -2,8 +2,26 @@
 #include <Zend/zend_execute.h>
 #include <Zend/zend_hash.h>
 #include <Zend/zend_map_ptr.h>
+#include <Zend/zend_closures.h>
+
+zend_op_array *gcd_get_closure_oa(zval *closure)
+{
+    if (Z_TYPE_P(closure) != IS_OBJECT
+        || !instanceof_function(Z_OBJCE_P(closure), zend_ce_closure)) {
+        return NULL;
+    }
+    zend_op_array *oa = (zend_op_array *) ((char *) Z_OBJ_P(closure) + sizeof(zend_object));
+    if (oa->type != ZEND_USER_FUNCTION) {
+        return NULL;   /* e.g. Closure::fromCallable('strlen') wraps an internal fn */
+    }
+    return oa;
+}
 
 static int gcd_array_copy(zval *dst, HashTable *src, int persistent);
+void gcd_zval_free(zval *zv, int persistent);
+
+static void gcd_persistent_dtor(zval *zv) { gcd_zval_free(zv, 1); }
+static void gcd_request_dtor(zval *zv) { gcd_zval_free(zv, 0); }
 
 int gcd_zval_copy(zval *dst, zval *src, int persistent)
 {
@@ -29,7 +47,8 @@ int gcd_zval_copy(zval *dst, zval *src, int persistent)
 static int gcd_array_copy(zval *dst, HashTable *src, int persistent)
 {
     HashTable *ht = pemalloc(sizeof(HashTable), persistent);
-    zend_hash_init(ht, zend_hash_num_elements(src), NULL, NULL, persistent);
+    zend_hash_init(ht, zend_hash_num_elements(src), NULL,
+                   persistent ? gcd_persistent_dtor : gcd_request_dtor, persistent);
     ZVAL_ARR(dst, ht);
 
     zend_string *key;

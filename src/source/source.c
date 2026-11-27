@@ -62,6 +62,7 @@ static void dispatch_handler(gcd_source *s)
         gcd_task *t = gcd_task_create(s->handler, NULL, 0);
         t->owns_oa = 0;          /* handler owned by source */
         t->queue = s->queue;
+        gcd_queue_retain(s->queue);
         t->is_sync = 0;
         if (s->queue->width == 1) gcd_queue_enqueue(s->queue, t);
         else gcd_pool_submit(t);
@@ -120,6 +121,7 @@ static void *source_thread(void *arg)
                 /* task takes ownership of argv (shallow copy); do not free here */
                 t->owns_oa = 0;
                 t->queue = s->queue;
+        gcd_queue_retain(s->queue);
                 t->is_sync = 0;
                 if (s->queue->width == 1) gcd_queue_enqueue(s->queue, t);
                 else gcd_pool_submit(t);
@@ -232,7 +234,8 @@ PHP_FUNCTION(source_set_event_handler)
     ZEND_PARSE_PARAMETERS_END();
     gcd_source *s = source_from_zval(sobj);
     if (!s) { zend_throw_exception(zend_ce_type_error, "expected GCD\\Source", 0); RETURN_THROWS(); }
-    zend_op_array *src = (zend_op_array *) ((char *) Z_OBJ_P(closure) + sizeof(zend_object));
+    zend_op_array *src = gcd_get_closure_oa(closure);
+    if (!src) { zend_throw_exception(zend_ce_type_error, "handler must be a user-function Closure", 0); RETURN_THROWS(); }
     zend_op_array *copy = gcd_op_array_copy_persistent(src);
     if (!copy) { zend_throw_exception(gcd_capture_ce, "handler unsupported in v1", 0); RETURN_THROWS(); }
     if (s->handler) gcd_op_array_free_persistent(s->handler);

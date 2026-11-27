@@ -17,4 +17,7 @@ static inline int gcd_zval_copy_persistent(zval *dst, zval *src) {
 zend_op_array *gcd_op_array_copy_persistent(zend_op_array *src);
 void gcd_op_array_free_persistent(zend_op_array *oa);
 
+/* Validate a zval is a user-function Closure and return its op_array (NULL if not). */
+zend_op_array *gcd_get_closure_oa(zval *closure);
+
 #endif

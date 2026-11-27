@@ -37,6 +37,7 @@ PHP_FUNCTION(sync)
         RETURN_THROWS();
     }
     t->queue = q;
+    gcd_queue_retain(q);
     t->is_sync = 1;
 
     if (q->width == 1) gcd_queue_enqueue(q, t); else gcd_pool_submit(t);
@@ -64,6 +65,7 @@ PHP_FUNCTION(async)
     if (!t) RETURN_THROWS();
     gcd_queue *q = gcd_queue_from_zval(qobj);
     t->queue = q;
+    gcd_queue_retain(q);
     t->is_sync = 0;
 
     if (q->width == 1) gcd_queue_enqueue(q, t); else gcd_pool_submit(t);
@@ -84,6 +86,7 @@ PHP_FUNCTION(barrier_async)
     gcd_task *t = gcd_task_build(closure, argv);
     if (!t) RETURN_THROWS();
     t->queue = q;
+    gcd_queue_retain(q);
     t->is_sync = 0;
     t->is_barrier = 1;
     if (q->width == 1) gcd_queue_enqueue(q, t); else gcd_pool_submit(t);
@@ -104,6 +107,7 @@ PHP_FUNCTION(barrier_sync)
     gcd_task *t = gcd_task_build(closure, argv);
     if (!t) RETURN_THROWS();
     t->queue = q;
+    gcd_queue_retain(q);
     t->is_sync = 1;
     t->is_barrier = 1;
     if (q->width == 1) gcd_queue_enqueue(q, t); else gcd_pool_submit(t);
@@ -137,13 +141,15 @@ PHP_FUNCTION(apply)
         add_next_index_long(&argv, i);
         gcd_task *t = gcd_task_build(closure, &argv);
         zval_ptr_dtor(&argv);
-        if (!t) continue;
+        if (!t) break;   /* exception set; stop dispatching, wait for in-flight */
         gcd_group_enter(g);
         t->queue = q;
+    gcd_queue_retain(q);
         t->is_sync = 0;
         t->group = g;
         if (q->width == 1) gcd_queue_enqueue(q, t); else gcd_pool_submit(t);
     }
     gcd_group_wait(g);
     gcd_group_free(g);
+    if (EG(exception)) RETURN_THROWS();
 }

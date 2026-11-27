@@ -52,6 +52,7 @@ static void *worker_main(void *arg)
 
         if (t->op_array == NULL) {
             gcd_queue_drain(t->queue);   /* serial drain job */
+            gcd_queue_release(t->queue);
             pefree(t, 1);
         } else {
             gcd_task_execute(t);

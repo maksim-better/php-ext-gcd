@@ -49,6 +49,10 @@ PHP_FUNCTION(set_error_handler)
 {
     zval *closure;
     ZEND_PARSE_PARAMETERS_START(1, 1) Z_PARAM_OBJECT(closure) ZEND_PARSE_PARAMETERS_END();
+    if (!gcd_get_closure_oa(closure)) {
+        zend_throw_exception(zend_ce_type_error, "handler must be a user-function Closure", 0);
+        RETURN_THROWS();
+    }
     gcd_error_set_global(closure);
 }
 

@@ -103,7 +103,7 @@ void gcd_task_execute(gcd_task *t)
     if (gated) {
         pthread_mutex_lock(&q->width_mutex);
         if (t->is_barrier) {
-            while (q->inflight > 0 || q->suspended) {
+            while (q->inflight > 0 || q->barrier_active || q->suspended) {
                 pthread_cond_wait(&q->width_cond, &q->width_mutex);
             }
             q->barrier_active = 1;
@@ -149,11 +149,11 @@ void gcd_task_execute(gcd_task *t)
 
 gcd_task *gcd_task_build(zval *closure, zval *argv)
 {
-    if (!instanceof_function(Z_OBJCE_P(closure), zend_ce_closure)) {
-        zend_throw_exception(zend_ce_type_error, "task must be a Closure", 0);
+    zend_op_array *src_oa = gcd_get_closure_oa(closure);
+    if (!src_oa) {
+        zend_throw_exception(zend_ce_type_error, "task must be a user-function Closure", 0);
         return NULL;
     }
-    zend_op_array *src_oa = (zend_op_array *) ((char *) Z_OBJ_P(closure) + sizeof(zend_object));
     zend_op_array *oa = gcd_op_array_copy_persistent(src_oa);
     if (!oa) {
         zend_throw_exception(gcd_capture_ce,
@@ -181,6 +181,7 @@ void gcd_task_wait(gcd_task *t)
 
 void gcd_task_destroy(gcd_task *t)
 {
+    if (t->queue) gcd_queue_release(t->queue);
     if (t->owns_oa) gcd_op_array_free_persistent(t->op_array);
     gcd_zval_free(&t->argv, 1);
     pthread_mutex_destroy(&t->mutex);
