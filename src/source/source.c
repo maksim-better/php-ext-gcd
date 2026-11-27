@@ -173,6 +173,8 @@ static void source_free_object(zend_object *object)
             }
             pthread_join(o->s->thread, NULL);
         }
+        /* wait for borrowed-handler tasks to finish before freeing the handler */
+        gcd_pool_drain(-1);
         if (o->s->handler) gcd_op_array_free_persistent(o->s->handler);
         pthread_mutex_destroy(&o->s->data_mutex);
         pthread_cond_destroy(&o->s->data_cond);
