@@ -1,8 +1,10 @@
 #include "task.h"
 #include "copy.h"
 #include "../queue/queue.h"
+#include "../queue/group.h"
 #include <Zend/zend_execute.h>
 #include <Zend/zend_exceptions.h>
+#include <Zend/zend_closures.h>
 #include <Zend/zend_map_ptr.h>
 
 TSRMLS_CACHE_EXTERN();
@@ -18,6 +20,7 @@ gcd_task *gcd_task_create(zend_op_array *oa, zval *argv, uint32_t argc)
     }
     t->argc = argc;
     t->queue = NULL;
+    t->group = NULL;
     t->is_sync = 0;
     pthread_mutex_init(&t->mutex, NULL);
     pthread_cond_init(&t->cond, NULL);
@@ -100,8 +103,32 @@ void gcd_task_execute(gcd_task *t)
         pthread_cond_signal(&t->cond);
         pthread_mutex_unlock(&t->mutex);
     } else {
+        if (t->group) gcd_group_leave(t->group);
         gcd_task_destroy(t);
     }
+}
+
+gcd_task *gcd_task_build(zval *closure, zval *argv)
+{
+    if (!instanceof_function(Z_OBJCE_P(closure), zend_ce_closure)) {
+        zend_throw_exception(zend_ce_type_error, "task must be a Closure", 0);
+        return NULL;
+    }
+    zend_op_array *src_oa = (zend_op_array *) ((char *) Z_OBJ_P(closure) + sizeof(zend_object));
+    zend_op_array *oa = gcd_op_array_copy_persistent(src_oa);
+    if (!oa) {
+        zend_throw_exception(gcd_capture_ce,
+            "closure captures variables or uses statics/try-catch (unsupported in v1)", 0);
+        return NULL;
+    }
+    zval pargv;
+    ZVAL_NULL(&pargv);
+    uint32_t argc = 0;
+    if (argv) {
+        gcd_zval_copy_persistent(&pargv, argv);
+        argc = zend_hash_num_elements(Z_ARRVAL_P(argv));
+    }
+    return gcd_task_create(oa, &pargv, argc);
 }
 
 void gcd_task_wait(gcd_task *t)

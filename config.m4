@@ -19,6 +19,7 @@ if test "$PHP_GCD" != "no"; then
     src/runtime/thread_pool.c \
     src/queue/queue.c \
     src/queue/dispatch.c \
+    src/queue/group.c \
     src/container/atomic.c \
     src/container/cqueue.c \
     src/container/set.c \
