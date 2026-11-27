@@ -12,6 +12,7 @@
 #include "src/runtime/php_context.h"
 #include "src/runtime/error.h"
 #include "src/loop.h"
+#include "src/source/source.h"
 #include "src/container/atomic.h"
 #include "src/container/cqueue.h"
 #include "src/container/set.h"
@@ -28,6 +29,7 @@ PHP_MINIT_FUNCTION(gcd)
     gcd_group_minit();
     gcd_semaphore_minit();
     gcd_once_minit();
+    gcd_source_minit();
     gcd_atomic_minit();
     gcd_cqueue_minit();
     gcd_set_minit();
@@ -135,6 +137,29 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_main, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_source_create, 0, 0, 1)
+    ZEND_ARG_INFO(0, type)
+    ZEND_ARG_INFO(0, handle)
+    ZEND_ARG_INFO(0, mask)
+    ZEND_ARG_INFO(0, queue)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_source_handler, 0, 0, 2)
+    ZEND_ARG_INFO(0, source)
+    ZEND_ARG_INFO(0, handler)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_source_set_timer, 0, 0, 2)
+    ZEND_ARG_INFO(0, source)
+    ZEND_ARG_INFO(0, start)
+    ZEND_ARG_INFO(0, interval)
+    ZEND_ARG_INFO(0, leeway)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_gcd_source_one, 0, 0, 1)
+    ZEND_ARG_INFO(0, source)
+ZEND_END_ARG_INFO()
+
 static const zend_function_entry gcd_functions[] = {
     ZEND_NS_FE("GCD", queue_create, arginfo_gcd_queue_create)
     ZEND_NS_FE("GCD", global_queue, arginfo_gcd_global_queue)
@@ -147,6 +172,11 @@ static const zend_function_entry gcd_functions[] = {
     ZEND_NS_FE("GCD", set_error_handler, arginfo_gcd_set_error_handler)
     ZEND_NS_FE("GCD", drain, arginfo_gcd_drain)
     ZEND_NS_FE("GCD", main, arginfo_gcd_main)
+    ZEND_NS_FE("GCD", source_create, arginfo_gcd_source_create)
+    ZEND_NS_FE("GCD", source_set_event_handler, arginfo_gcd_source_handler)
+    ZEND_NS_FE("GCD", source_set_timer, arginfo_gcd_source_set_timer)
+    ZEND_NS_FE("GCD", source_resume, arginfo_gcd_source_one)
+    ZEND_NS_FE("GCD", source_cancel, arginfo_gcd_source_one)
     ZEND_NS_FE("GCD", sync, arginfo_gcd_dispatch)
     ZEND_NS_FE("GCD", async, arginfo_gcd_dispatch)
     ZEND_NS_FE("GCD", barrier_async, arginfo_gcd_dispatch)

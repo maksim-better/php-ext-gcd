@@ -27,6 +27,7 @@ gcd_task *gcd_task_create(zend_op_array *oa, zval *argv, uint32_t argc)
     t->group = NULL;
     t->is_sync = 0;
     t->is_barrier = 0;
+    t->owns_oa = 1;
     pthread_mutex_init(&t->mutex, NULL);
     pthread_cond_init(&t->cond, NULL);
     t->done = 0;
@@ -180,7 +181,7 @@ void gcd_task_wait(gcd_task *t)
 
 void gcd_task_destroy(gcd_task *t)
 {
-    gcd_op_array_free_persistent(t->op_array);
+    if (t->owns_oa) gcd_op_array_free_persistent(t->op_array);
     gcd_zval_free(&t->argv, 1);
     pthread_mutex_destroy(&t->mutex);
     pthread_cond_destroy(&t->cond);
