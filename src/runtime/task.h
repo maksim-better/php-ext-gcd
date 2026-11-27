@@ -13,6 +13,7 @@ typedef struct _gcd_task {
     int is_sync;               /* 1: submitter waits+frees; 0: worker frees */
     int is_barrier;            /* exclusive drain barrier */
     int owns_oa;               /* 1: free op_array on destroy; 0: borrowed */
+    uint64_t seq;              /* per-queue submission order (concurrent gate) */
     pthread_mutex_t mutex;
     pthread_cond_t cond;
     int done;

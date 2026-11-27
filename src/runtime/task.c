@@ -27,6 +27,7 @@ gcd_task *gcd_task_create(zend_op_array *oa, zval *argv, uint32_t argc)
     t->group = NULL;
     t->is_sync = 0;
     t->is_barrier = 0;
+    t->seq = 0;
     t->owns_oa = 1;
     pthread_mutex_init(&t->mutex, NULL);
     pthread_cond_init(&t->cond, NULL);
@@ -112,16 +113,18 @@ void gcd_task_execute(gcd_task *t)
     if (gated) {
         pthread_mutex_lock(&q->width_mutex);
         if (t->is_barrier) {
-            while (q->inflight > 0 || q->barrier_active || q->suspended) {
+            while (t->seq != q->next_admit || q->inflight > 0 || q->barrier_active || q->suspended) {
                 pthread_cond_wait(&q->width_cond, &q->width_mutex);
             }
             q->barrier_active = 1;
         } else {
-            while (q->inflight >= q->width || q->barrier_active || q->suspended) {
+            while (t->seq != q->next_admit || q->inflight >= q->width || q->barrier_active || q->suspended) {
                 pthread_cond_wait(&q->width_cond, &q->width_mutex);
             }
             q->inflight++;
         }
+        q->next_admit++;
+        pthread_cond_broadcast(&q->width_cond);
         pthread_mutex_unlock(&q->width_mutex);
     }
 

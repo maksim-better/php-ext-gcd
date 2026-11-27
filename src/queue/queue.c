@@ -68,6 +68,21 @@ void gcd_queue_release(gcd_queue *q)
     }
 }
 
+void gcd_queue_submit(gcd_queue *q, gcd_task *t)
+{
+    if (q->width == 1) {
+        gcd_queue_enqueue(q, t);
+    } else {
+        /* Take the ticket and enqueue atomically so pool FIFO order == seq
+         * order; holding width_mutex across submit is safe (workers release
+         * g_mutex before taking width_mutex at the gate). */
+        pthread_mutex_lock(&q->width_mutex);
+        t->seq = q->next_seq++;
+        gcd_pool_submit(t);
+        pthread_mutex_unlock(&q->width_mutex);
+    }
+}
+
 gcd_queue *gcd_queue_from_zval(zval *zv)
 {
     if (Z_TYPE_P(zv) != IS_OBJECT || !instanceof_function(Z_OBJCE_P(zv), gcd_queue_ce)) {

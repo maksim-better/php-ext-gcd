@@ -64,8 +64,7 @@ static void dispatch_handler(gcd_source *s)
         t->queue = s->queue;
         gcd_queue_retain(s->queue);
         t->is_sync = 0;
-        if (s->queue->width == 1) gcd_queue_enqueue(s->queue, t);
-        else gcd_pool_submit(t);
+        gcd_queue_submit(s->queue, t);
     }
 }
 
@@ -124,8 +123,7 @@ static void *source_thread(void *arg)
                 t->queue = s->queue;
         gcd_queue_retain(s->queue);
                 t->is_sync = 0;
-                if (s->queue->width == 1) gcd_queue_enqueue(s->queue, t);
-                else gcd_pool_submit(t);
+                gcd_queue_submit(s->queue, t);
             }
             pthread_mutex_lock(&s->data_mutex);
         }

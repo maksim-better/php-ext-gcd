@@ -40,7 +40,7 @@ PHP_FUNCTION(sync)
     gcd_queue_retain(q);
     t->is_sync = 1;
 
-    if (q->width == 1) gcd_queue_enqueue(q, t); else gcd_pool_submit(t);
+    gcd_queue_submit(q, t);
     gcd_task_wait(t);
     gcd_pool_task_done();
     gcd_task_destroy(t);
@@ -68,7 +68,7 @@ PHP_FUNCTION(async)
     gcd_queue_retain(q);
     t->is_sync = 0;
 
-    if (q->width == 1) gcd_queue_enqueue(q, t); else gcd_pool_submit(t);
+    gcd_queue_submit(q, t);
     RETURN_NULL();
 }
 
@@ -89,7 +89,7 @@ PHP_FUNCTION(barrier_async)
     gcd_queue_retain(q);
     t->is_sync = 0;
     t->is_barrier = 1;
-    if (q->width == 1) gcd_queue_enqueue(q, t); else gcd_pool_submit(t);
+    gcd_queue_submit(q, t);
     RETURN_NULL();
 }
 
@@ -110,7 +110,7 @@ PHP_FUNCTION(barrier_sync)
     gcd_queue_retain(q);
     t->is_sync = 1;
     t->is_barrier = 1;
-    if (q->width == 1) gcd_queue_enqueue(q, t); else gcd_pool_submit(t);
+    gcd_queue_submit(q, t);
     gcd_task_wait(t);
     gcd_pool_task_done();
     gcd_task_destroy(t);
@@ -148,7 +148,7 @@ PHP_FUNCTION(apply)
         gcd_queue_retain(q);
         t->is_sync = 0;
         t->group = g;
-        if (q->width == 1) gcd_queue_enqueue(q, t); else gcd_pool_submit(t);
+        gcd_queue_submit(q, t);
     }
     gcd_group_wait(g);
     gcd_group_release(g);

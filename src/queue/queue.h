@@ -18,6 +18,8 @@ typedef struct _gcd_queue {
     int inflight;                   /* concurrent width gate */
     int barrier_active;             /* exclusive barrier in progress */
     int suspended;
+    uint64_t next_seq;              /* next submission ticket (width_mutex) */
+    uint64_t next_admit;            /* next ticket admitted at the gate */
     HashTable specific;             /* persistent key -> zval context */
     zend_op_array *error_handler;   /* per-queue error handler (persistent) */
     int qos;                        /* -1 = inherit from target */
@@ -25,6 +27,8 @@ typedef struct _gcd_queue {
     pthread_mutex_t width_mutex;
     pthread_cond_t width_cond;
 } gcd_queue;
+
+void gcd_queue_submit(gcd_queue *q, struct _gcd_task *t);  /* sequenced submit (FIFO gate) */
 
 typedef struct {
     gcd_queue *q;

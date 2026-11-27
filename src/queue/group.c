@@ -78,8 +78,7 @@ void gcd_group_leave(gcd_group *g)
                 t->is_sync = 0;
                 t->group = g;
                 gcd_group_retain(g);
-                if (n->q->width == 1) gcd_queue_enqueue(n->q, t);
-                else gcd_pool_submit(t);
+                gcd_queue_submit(n->q, t);
             }
         }
         pthread_cond_broadcast(&g->cond);
@@ -239,7 +238,7 @@ PHP_FUNCTION(group_async)
     t->is_sync = 0;
     t->group = g;
     gcd_group_retain(g);
-    if (q->width == 1) gcd_queue_enqueue(q, t); else gcd_pool_submit(t);
+    gcd_queue_submit(q, t);
 }
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_group_notify, 0, 0, 3)
