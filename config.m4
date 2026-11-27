@@ -18,5 +18,6 @@ if test "$PHP_GCD" != "no"; then
     src/runtime/task.c \
     src/runtime/thread_pool.c \
     src/queue/queue.c \
-    src/queue/dispatch.c, $ext_shared)
+    src/queue/dispatch.c \
+    src/container/atomic.c, $ext_shared)
 fi

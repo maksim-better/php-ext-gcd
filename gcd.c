@@ -7,6 +7,7 @@
 #include "src/queue/dispatch.h"
 #include "src/runtime/thread_pool.h"
 #include "src/runtime/php_context.h"
+#include "src/container/atomic.h"
 #include <ext/standard/info.h>
 
 TSRMLS_CACHE_DEFINE();
@@ -15,6 +16,7 @@ PHP_MINIT_FUNCTION(gcd)
 {
     gcd_context_capture_parent();
     gcd_queue_minit();
+    gcd_atomic_minit();
     return SUCCESS;
 }
 
