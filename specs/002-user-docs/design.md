@@ -126,7 +126,7 @@ docs/
 1. 逐函数从 C 源码提取 arginfo（`ZEND_BEGIN_ARG_INFO` / `ZEND_ARG_*`），作为签名唯一来源。
 2. specs 契约仅作历史设计参考（提案，与实现有漂移）；行为语义从 C 源码 + tests/ +
    crawler.php 提取；差异记入实现备注文件
-   `docs/superpowers/specs/2026-11-27-user-docs-notes.md`（实现期创建）。
+   `specs/002-user-docs/notes.md`（实现期创建）。
 3. 每段示例在本机 PHP 8.6 ZTS 上运行验证（扩展已经 conf.d 启用）。
 4. 双语对等检查：页面清单、标题层级、锚点一致。
 5. README 更新：版本描述 8.4–8.6、docs 链接；保留 Docker 构建路线。
