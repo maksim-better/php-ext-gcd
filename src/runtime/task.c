@@ -182,6 +182,7 @@ void gcd_task_wait(gcd_task *t)
 void gcd_task_destroy(gcd_task *t)
 {
     if (t->queue) gcd_queue_release(t->queue);
+    if (t->group) gcd_group_release(t->group);
     if (t->owns_oa) gcd_op_array_free_persistent(t->op_array);
     gcd_zval_free(&t->argv, 1);
     pthread_mutex_destroy(&t->mutex);

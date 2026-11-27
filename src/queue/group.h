@@ -11,6 +11,8 @@ gcd_group *gcd_group_new(void);
 void gcd_group_free(gcd_group *g);
 void gcd_group_enter(gcd_group *g);
 void gcd_group_wait(gcd_group *g);
+void gcd_group_retain(gcd_group *g);
+void gcd_group_release(gcd_group *g);
 gcd_group *gcd_group_from_zval(zval *zv);
 
 PHP_FUNCTION(group_create);

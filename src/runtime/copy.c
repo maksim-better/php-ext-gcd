@@ -87,8 +87,8 @@ void gcd_zval_free(zval *zv, int persistent)
 zend_op_array *gcd_op_array_copy_persistent(zend_op_array *src)
 {
     if ((src->static_variables && zend_hash_num_elements(src->static_variables) > 0)
-        || src->last_try_catch) {
-        return NULL;
+        || src->attributes) {
+        return NULL;   /* use-capture / attributes: v1 reject */
     }
     zend_op_array *oa = pemalloc(sizeof(zend_op_array), 1);
     memcpy(oa, src, sizeof(zend_op_array));
@@ -131,7 +131,16 @@ zend_op_array *gcd_op_array_copy_persistent(zend_op_array *src)
     oa->run_time_cache__ptr = NULL;
     oa->refcount = NULL;
     oa->static_variables = NULL;
-    oa->try_catch_array = NULL;
+    oa->prop_info = NULL;
+    oa->attributes = NULL;
+    /* dynamic_func_defs (nested closures) kept as-is: valid while the parent
+     * runtime lives (resident daemon). Deep-copy is a future hardening item. */
+    if (src->last_try_catch) {
+        oa->try_catch_array = pemalloc(sizeof(zend_try_catch_element) * src->last_try_catch, 1);
+        memcpy(oa->try_catch_array, src->try_catch_array, sizeof(zend_try_catch_element) * src->last_try_catch);
+    } else {
+        oa->try_catch_array = NULL;
+    }
     if (src->last_live_range) {
         oa->live_range = pemalloc(sizeof(zend_live_range) * src->last_live_range, 1);
         memcpy(oa->live_range, src->live_range, sizeof(zend_live_range) * src->last_live_range);
@@ -151,6 +160,7 @@ void gcd_op_array_free_persistent(zend_op_array *oa)
     }
     if (oa->opcodes) pefree(oa->opcodes, 1);  /* single block including literals */
     if (oa->live_range) pefree(oa->live_range, 1);
+    if (oa->try_catch_array) pefree(oa->try_catch_array, 1);
     if (oa->vars) {
         for (uint32_t i = 0; i < oa->last_var; i++) {
             if (oa->vars[i]) zend_string_release(oa->vars[i]);

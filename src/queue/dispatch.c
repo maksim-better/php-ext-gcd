@@ -143,13 +143,14 @@ PHP_FUNCTION(apply)
         zval_ptr_dtor(&argv);
         if (!t) break;   /* exception set; stop dispatching, wait for in-flight */
         gcd_group_enter(g);
+        gcd_group_retain(g);
         t->queue = q;
-    gcd_queue_retain(q);
+        gcd_queue_retain(q);
         t->is_sync = 0;
         t->group = g;
         if (q->width == 1) gcd_queue_enqueue(q, t); else gcd_pool_submit(t);
     }
     gcd_group_wait(g);
-    gcd_group_free(g);
+    gcd_group_release(g);
     if (EG(exception)) RETURN_THROWS();
 }

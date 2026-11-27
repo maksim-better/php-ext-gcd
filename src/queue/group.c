@@ -18,6 +18,7 @@ struct gcd_notify {
 
 struct _gcd_group {
     atomic_long count;
+    atomic_long refcount;
     pthread_mutex_t lock;
     pthread_cond_t cond;
     struct gcd_notify *notify_head;
@@ -50,7 +51,7 @@ static void group_free_object(zend_object *object)
 {
     gcd_group_object *o = group_fetch(object);
     if (o->g) {
-        gcd_group_free(o->g);
+        gcd_group_release(o->g);
     }
     zend_object_std_dtor(object);
 }
@@ -67,6 +68,7 @@ void gcd_group_leave(gcd_group *g)
 {
     long old = atomic_fetch_sub(&g->count, 1);
     if (old == 1) {
+        pthread_mutex_lock(&g->lock);
         for (struct gcd_notify *n = g->notify_head; n; n = n->next) {
             if (n->handler && n->q) {
                 gcd_task *t = gcd_task_create(n->handler, NULL, 0);
@@ -74,11 +76,12 @@ void gcd_group_leave(gcd_group *g)
                 t->queue = n->q;
                 gcd_queue_retain(n->q);
                 t->is_sync = 0;
+                t->group = g;
+                gcd_group_retain(g);
                 if (n->q->width == 1) gcd_queue_enqueue(n->q, t);
                 else gcd_pool_submit(t);
             }
         }
-        pthread_mutex_lock(&g->lock);
         pthread_cond_broadcast(&g->cond);
         pthread_mutex_unlock(&g->lock);
     }
@@ -88,6 +91,7 @@ gcd_group *gcd_group_new(void)
 {
     gcd_group *g = malloc(sizeof(gcd_group));
     atomic_init(&g->count, 0);
+    atomic_init(&g->refcount, 1);
     pthread_mutex_init(&g->lock, NULL);
     pthread_cond_init(&g->cond, NULL);
     g->notify_head = NULL;
@@ -106,6 +110,18 @@ void gcd_group_free(gcd_group *g)
     pthread_mutex_destroy(&g->lock);
     pthread_cond_destroy(&g->cond);
     free(g);
+}
+
+void gcd_group_retain(gcd_group *g)
+{
+    if (g) atomic_fetch_add(&g->refcount, 1);
+}
+
+void gcd_group_release(gcd_group *g)
+{
+    if (g && atomic_fetch_sub(&g->refcount, 1) == 1) {
+        gcd_group_free(g);
+    }
 }
 
 void gcd_group_enter(gcd_group *g)
@@ -222,6 +238,7 @@ PHP_FUNCTION(group_async)
     gcd_queue_retain(q);
     t->is_sync = 0;
     t->group = g;
+    gcd_group_retain(g);
     if (q->width == 1) gcd_queue_enqueue(q, t); else gcd_pool_submit(t);
 }
 
@@ -249,8 +266,10 @@ PHP_FUNCTION(group_notify)
     struct gcd_notify *n = malloc(sizeof(struct gcd_notify));
     n->q = q;
     n->handler = copy;
+    pthread_mutex_lock(&g->lock);
     n->next = g->notify_head;
     g->notify_head = n;
+    pthread_mutex_unlock(&g->lock);
 }
 
 void gcd_group_minit(void)
