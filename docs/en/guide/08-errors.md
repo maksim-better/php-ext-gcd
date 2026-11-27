@@ -4,8 +4,8 @@
 
 ## Two kinds of failure
 
-- **Dispatch-time exceptions** — bad handle types, `CaptureException`, `SerializationException`, the `sync` deadlock guard. These are thrown synchronously to the caller; catch them with ordinary try/catch in your script.
-- **In-task exceptions** — anything a task throws while running. These never reach the caller; they go through the reporting layers below.
+- **Dispatch-time exceptions** — bad handle types, `CaptureException`, `SerializationException`. These are thrown synchronously to the caller; catch them with ordinary try/catch in your script.
+- **In-task exceptions** — anything a task throws while running, including the `sync` deadlock guard. These never reach the caller; they go through the reporting layers below.
 
 ## The reporting layers
 
@@ -15,7 +15,7 @@ When a task finishes with an exception, the extension:
 2. otherwise the **global handler** (`set_error_handler`),
 3. otherwise **discards the exception silently**.
 
-Handlers receive `(string $message, string $className)`, run in the failing task's worker, and cannot throw usefully — their own exceptions are discarded too. Record outcomes through shared containers:
+Handlers receive `(string $message, string $className)`, run in the failing task's worker, and cannot throw usefully — their own exceptions are discarded too. For `Error`-derived exceptions (including the GCD exceptions) `$message` arrives empty in v1 — route by `$className`. Record outcomes through shared containers:
 
 ```php
 $errors = new GCD\Atomic(0, 'err');
@@ -48,7 +48,7 @@ echo $global->get(), "\n";   // 0
 echo $local->get();          // 1
 ```
 
-Handler closures follow the same v1 rules as tasks: no captures, statics or try/catch.
+Handler closures follow the same v1 rules as tasks: no captures or statics (try/catch is allowed). A capturing global handler is silently not installed — verify it runs.
 
 ## Catching dispatch-time exceptions
 

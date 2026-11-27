@@ -201,7 +201,7 @@ GCD\Map::open(string $name): GCD\Map
 $m->set(string $key, mixed $value): void
 ```
 
-**Parameters** — String key; serializable value.
+**Parameters** — String key; value limited to null/bool/int/float/string and arrays of those (objects throw SerializationException).
 
 **Return** — Nothing.
 
@@ -294,7 +294,7 @@ $m->count(): int
 
 ## Set
 
-A shared set. Values are identified by their **serialized form** — equal serializations mean equal members. Keep values serializable.
+A shared set. Values are identified by their **serialized form** (PHP serialization, so serializable objects are accepted). **Closures and resources are unsupported and can crash the process** — `add`, `contains` and `remove` all serialize the value.
 
 | Method | Signature |
 |---|---|
@@ -361,7 +361,7 @@ $s->add(mixed $value): bool
 
 **Return** — `true` if newly added, `false` if already present.
 
-**Errors** — Serialization failures surface as errors from the serializer.
+**Errors** — Unsupported values (closures, resources) can crash the process; keep values to scalars, arrays and serializable objects.
 
 **Notes** — Dedup key is the serialized value; safe under concurrent adds.
 
@@ -379,7 +379,7 @@ $s->contains(mixed $value): bool
 
 **Return** — Whether an equal value is present.
 
-**Errors** — None.
+**Errors** — Unsupported values (closures, resources) can crash the process.
 
 **Notes** — Compares serialized forms.
 
@@ -397,7 +397,7 @@ $s->remove(mixed $value): bool
 
 **Return** — `true` if removed, `false` if absent.
 
-**Errors** — None.
+**Errors** — Unsupported values (closures, resources) can crash the process.
 
 **Notes** — Mutex-protected.
 
@@ -487,7 +487,7 @@ GCD\ConcurrentQueue::open(string $name): GCD\ConcurrentQueue
 $q->push(mixed $value): void
 ```
 
-**Parameters** — Value to enqueue (serializable).
+**Parameters** — Value to enqueue: null/bool/int/float/string and arrays of those (objects throw SerializationException).
 
 **Return** — Nothing.
 

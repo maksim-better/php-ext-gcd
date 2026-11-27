@@ -22,11 +22,11 @@ $n = $c->get();
 echo ($n >= 3 && $n <= 12) ? 'timer-ok' : "bad:$n";
 ```
 
-间隔务必显式传入。`leeway` v1 接受但不应用。
+间隔务必显式传入：省略时其值不确定（常表现为紧密触发循环）。`leeway` v1 接受但不应用。
 
 ## 信号
 
-SIGNAL 源在专用线程上经 `sigwait` 交付——ZTS 下安全，无异步信号风险。`source_resume` 在调用线程阻塞该信号，worker 继承掩码。需要 ext-posix：
+SIGNAL 源在专用线程上经 `sigwait` 交付。`source_resume` 只在调用线程阻塞该信号——先前派发已创建的 worker 不继承掩码，此时收到信号可能终止进程。**请在首次派发之前启动信号源。**示例使用 ext-posix：
 
 ```php
 $q = GCD\queue_create('w', 2);
@@ -46,7 +46,7 @@ echo $c->get();   // 1
 
 ## 子进程
 
-PROC 源轮询 `waitpid`（10ms），子进程退出时触发一次。需要 ext-pcntl：
+PROC 源轮询 `waitpid`（10ms），子进程退出时触发一次。示例使用 ext-pcntl：
 
 ```php
 $pid = pcntl_fork();

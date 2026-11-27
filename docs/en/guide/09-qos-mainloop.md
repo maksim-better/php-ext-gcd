@@ -47,4 +47,4 @@ GCD\queue_set_target($child, $parent);
 echo GCD\queue_get_qos($child) === GCD\QOS_USER_INITIATED ? 'inherit-ok' : 'bad';
 ```
 
-QoS is **best-effort** in v1: values are recorded and resolved, but OS-level priority enforcement is limited, and `qos_class_self()` always reports `QOS_DEFAULT`. See the [queue reference](../api/queue.md#qos-constants).
+QoS is **recorded only** in v1: values are stored and resolved through target chains, but nothing schedules on them — there is no OS scheduling effect — and `qos_class_self()` always reports `QOS_DEFAULT`. See the [queue reference](../api/queue.md#qos-constants).

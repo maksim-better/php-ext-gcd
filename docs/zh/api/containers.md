@@ -201,7 +201,7 @@ GCD\Map::open(string $name): GCD\Map
 $m->set(string $key, mixed $value): void
 ```
 
-**参数** —— 字符串键；可序列化的值。
+**参数** —— 字符串键；值仅限 null/bool/int/float/string 及它们的数组（对象抛 SerializationException）。
 
 **返回值** —— 无。
 
@@ -294,7 +294,7 @@ $m->count(): int
 
 ## Set
 
-共享集合。成员以**序列化形式**标识——序列化相等即成员相等。值保持可序列化。
+共享集合。成员以**序列化形式**标识（PHP 序列化，可序列化对象可接受）。**闭包与资源不支持，可能使进程崩溃**——`add`、`contains`、`remove` 都会序列化值。
 
 | 方法 | 签名 |
 |---|---|
@@ -361,7 +361,7 @@ $s->add(mixed $value): bool
 
 **返回值** —— 新增返回 `true`；已存在返回 `false`。
 
-**错误与异常** —— 序列化失败以序列化器的错误形式上报。
+**错误与异常** —— 不支持的值（闭包、资源）可能使进程崩溃；值请用标量、数组与可序列化对象。
 
 **备注** —— 去重键是序列化值；并发 add 安全。
 
@@ -379,7 +379,7 @@ $s->contains(mixed $value): bool
 
 **返回值** —— 是否存在相等成员。
 
-**错误与异常** —— 无。
+**错误与异常** —— 不支持的值（闭包、资源）可能使进程崩溃。
 
 **备注** —— 比较序列化形式。
 
@@ -397,7 +397,7 @@ $s->remove(mixed $value): bool
 
 **返回值** —— 删除返回 `true`；不存在返回 `false`。
 
-**错误与异常** —— 无。
+**错误与异常** —— 不支持的值（闭包、资源）可能使进程崩溃。
 
 **备注** —— 互斥锁保护。
 
@@ -487,7 +487,7 @@ GCD\ConcurrentQueue::open(string $name): GCD\ConcurrentQueue
 $q->push(mixed $value): void
 ```
 
-**参数** —— 要入队的值（可序列化）。
+**参数** —— 要入队的值：null/bool/int/float/string 及它们的数组（对象抛 SerializationException）。
 
 **返回值** —— 无。
 

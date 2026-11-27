@@ -12,7 +12,7 @@ A PHP extension providing **GCD-style (Grand Central Dispatch) concurrency** on
   build target; 8.5 expected compatible but unverified; 8.2/8.3 not promised.
   NTS / FPM / Windows are **not supported** — the extension rejects NTS builds
   at configure/compile time.
-- Linux (epoll) or macOS (kqueue).
+- Linux or macOS (poll-based event sources).
 - C toolchain: clang/gcc, autoconf, make, phpize.
 
 ## Build (recommended: Docker ZTS image)
@@ -39,11 +39,12 @@ macOS CI builds ZTS PHP via `scripts/build-zts-macos.sh`.
 - Custom pthread thread pool; each worker boots an isolated PHP runtime
   (`ts_resource` + `TSRMLS_CACHE_UPDATE` + `php_request_startup`, one request per thread).
 - GCD queue layer (serial/concurrent, drain lock, target queue), async/sync/barrier/
-  after/apply, group/semaphore/once, event sources (epoll/kqueue), dispatch_data/io,
-  QoS (Linux best-effort).
+  apply, group/semaphore/once, poll-based event sources, data buffers,
+  QoS (recorded only). `after` and dispatch_io channels are planned, not in v1.
 - Tasks are closures + serializable argv (no captured variables in v1).
 - Thread-safe shared containers: queue / set / atomic counter / map.
-- Dual main-loop model: `GCD\main()` (callback-driven) + `GCD\drain()` (manual loop).
+- Main loop: `GCD\drain()` waits for pending work; `GCD\main()` is equivalent in v1
+  (a never-returning, source-driven loop is planned).
 
 ## Documentation
 

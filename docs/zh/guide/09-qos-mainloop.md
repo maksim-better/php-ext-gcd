@@ -47,4 +47,4 @@ GCD\queue_set_target($child, $parent);
 echo GCD\queue_get_qos($child) === GCD\QOS_USER_INITIATED ? 'inherit-ok' : 'bad';
 ```
 
-v1 的 QoS 是 **best-effort**：值被记录与解析，但操作系统级优先级强制有限，且 `qos_class_self()` 恒返回 `QOS_DEFAULT`。见[队列参考](../api/queue.md#qos-常量)。
+v1 的 QoS **仅被记录**：值被存储并沿目标链解析，但调度并不使用它——无操作系统调度效果——且 `qos_class_self()` 恒返回 `QOS_DEFAULT`。见[队列参考](../api/queue.md#qos-常量)。

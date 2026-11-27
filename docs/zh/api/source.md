@@ -11,7 +11,7 @@
 **签名**
 
 ```text
-GCD\source_create(int $type, int $handle = 0, int $mask = 0, ?GCD\Queue $queue = null): GCD\Source
+GCD\source_create(int $type, int $handle = 0, int $mask = 0, GCD\Queue $queue): GCD\Source
 ```
 
 **参数**
@@ -21,7 +21,7 @@ GCD\source_create(int $type, int $handle = 0, int $mask = 0, ?GCD\Queue $queue =
 | `$type` | `int` | [源类型常量](#源类型常量)之一 |
 | `$handle` | `int` | 随类型而定：信号号（SIGNAL）、子进程 pid（PROC）、原生 fd（READ/WRITE）；TIMER/DATA_ADD 不用 |
 | `$mask` | `int` | v1 接受但不应用 |
-| `$queue` | `GCD\Queue\|null` | 处理器派发到的队列 |
+| `$queue` | `GCD\Queue` | 可选——省略该参数（显式传 `null` 抛 TypeError）；处理器派发到的队列 |
 
 **返回值** —— 新建的、挂起的源。
 
@@ -60,7 +60,7 @@ GCD\source_set_event_handler(GCD\Source $source, Closure $handler): void
 | 名称 | 类型 | 说明 |
 |---|---|---|
 | `$source` | `GCD\Source` | 要配置的源 |
-| `$handler` | `Closure` | 用户函数闭包；同样的 v1 规则（无捕获/静态/try-catch） |
+| `$handler` | `Closure` | 用户函数闭包；同样的 v1 规则（无捕获/静态；允许 try/catch） |
 
 **返回值** —— 无。
 
@@ -84,7 +84,7 @@ GCD\source_set_timer(GCD\Source $source, float $start, float $interval, float $l
 |---|---|---|
 | `$source` | `GCD\Source` | TIMER 源 |
 | `$start` | `float` | 首次触发前的秒数 |
-| `$interval` | `float` | 触发间隔秒数——务必显式传入（省略时 v1 不初始化它） |
+| `$interval` | `float` | 触发间隔秒数——务必显式传入：省略时其值不确定（常表现为紧密触发循环） |
 | `$leeway` | `float` | v1 接受但不应用 |
 
 **返回值** —— 无。
@@ -113,7 +113,7 @@ GCD\source_resume(GCD\Source $source): void
 
 **错误与异常** —— 非 Source 抛 `TypeError`（"expected GCD\Source"）。
 
-**备注** —— 启动监视线程；重复 resume 无副作用。SIGNAL 源会在调用线程阻塞该信号，使派生 worker 继承掩码、信号交给 `sigwait` 处理。
+**备注** —— 启动监视线程；重复 resume 无副作用。SIGNAL 源只在调用线程阻塞该信号：先前派发已创建的 worker 不继承掩码，此时收到信号可能终止进程。请在首次派发之前启动信号源。
 
 **示例**
 
@@ -234,4 +234,4 @@ echo GCD\source_get_data($src);   // 5 —— 未 resume，无人消费
 | `GCD\SOURCE_PROC` | 5 | 子进程退出（`$handle` = pid） | 无 |
 | `GCD\SOURCE_DATA_ADD` | 6 | 累加值非零 | `int` 合并总和 |
 
-READ/WRITE 接受原生整型文件描述符，纯 PHP 用户态无法从流中提取；在拥有真实 fd 的代码中使用（如经 FFI）。PROC 需要 ext-pcntl；SIGNAL 需要 ext-posix。
+READ/WRITE 接受原生整型文件描述符，纯 PHP 用户态无法从流中提取；在拥有真实 fd 的代码中使用（如经 FFI）。PROC 示例使用 ext-pcntl、SIGNAL 示例使用 ext-posix；源类型本身只需要 pid / 信号号。

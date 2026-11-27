@@ -28,11 +28,13 @@ The guard covers `sync` only; `barrier_sync` has no such check, so never barrier
 
 ## Barriers
 
-A barrier task waits for in-flight tasks on the queue, then runs **exclusively** — nothing else starts while it runs. That gives a read-write lock pattern:
+A barrier task waits for tasks already in flight when it starts, then runs **exclusively** — nothing else starts while it runs. That gives a read-write lock pattern:
 
 - readers: [`async`](../api/dispatch.md#async) (many at once),
-- writer: [`barrier_sync`](../api/dispatch.md#barrier_sync) (alone, after all readers),
+- writer: [`barrier_sync`](../api/dispatch.md#barrier_sync) (alone, after all current readers),
 - or [`barrier_async`](../api/dispatch.md#barrier_async) to submit the writer without blocking.
+
+Ordering caveat: tasks submitted *after* the barrier may start before it runs — the barrier only waits for work already in flight.
 
 ## Parallel iteration with apply
 
@@ -63,4 +65,4 @@ GCD\once('boot', function () {
 
 - [`GCD\drain()`](09-qos-mainloop.md) — wait until pending work finishes (script/batch style).
 - [`group_wait`](04-sync.md) — wait for a specific set of tasks.
-- [`GCD\main()`](09-qos-mainloop.md) — the callback-driven loop for long-running services.
+- [`GCD\main()`](09-qos-mainloop.md) — in v1, equivalent to `drain()` without a timeout; see [QoS and the main loop](09-qos-mainloop.md).

@@ -15,8 +15,8 @@ GCD\async(GCD\Queue $queue, Closure $task, array $argv = []): void
 | 名称 | 类型 | 说明 |
 |---|---|---|
 | `$queue` | `GCD\Queue` | 目标队列 |
-| `$task` | `Closure` | 用户函数闭包；v1 不允许捕获、静态变量、try/catch |
-| `$argv` | `array` | 传给闭包的参数；值必须可序列化 |
+| `$task` | `Closure` | 用户函数闭包；v1 不允许捕获、静态变量；允许 try/catch |
+| `$argv` | `array` | 传给闭包的参数；仅 null/bool/int/float/string 及它们的数组——对象可能使进程崩溃 |
 
 **返回值** —— 无（`null`）。不等待任务。
 
@@ -75,7 +75,7 @@ GCD\barrier_async(GCD\Queue $queue, Closure $task, array $argv = []): void
 
 **错误与异常** —— 同 `async`。
 
-**备注** —— barrier 任务等待队列上在途任务结束，然后独占执行：运行期间没有其他任务启动；barrier 之后的提交排在它后面。
+**备注** —— barrier 任务等待它启动时已在途的任务结束，然后独占执行：运行期间没有其他任务启动。barrier 之后提交的任务可能先于它启动——后续提交无顺序保证。
 
 **示例**
 
@@ -104,7 +104,7 @@ GCD\barrier_sync(GCD\Queue $queue, Closure $task, array $argv = []): void
 
 **错误与异常** —— 同 `async`。没有死锁保护（与 `sync` 不同）。
 
-**备注** —— 排空在途任务、独占执行 barrier、然后返回。经典读写锁模式：读者用 `async`，写者用 `barrier_sync`。
+**备注** —— 排空当前在途任务、独占执行 barrier、然后返回。可用作读写锁模式（读者 `async`，写者 `barrier_sync`），但后续提交不保证排在 barrier 之后。
 
 **示例**
 

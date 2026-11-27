@@ -29,19 +29,19 @@ Queues are handles: create them with [`queue_create`](../api/queue.md#queue_crea
 
 The extension runs a custom pthread pool. Each worker thread boots an **isolated PHP runtime** — one request per thread. Consequences you must design around:
 
-- A task's `echo` does not reach your script's STDOUT. Return results through files or [shared containers](07-containers.md); [`sync`](03-dispatch.md) waits for a task but returns `null`.
-- Ordinary PHP globals and statics are per-runtime, not shared between tasks.
+- Worker output is unsynchronized: a task's `echo` can appear interleaved on STDOUT. Collect results through files or [shared containers](07-containers.md); [`sync`](03-dispatch.md) waits for a task but returns `null`.
+- Worker runtimes persist across tasks: globals and statics can leak between tasks that land on the same worker, and are never shared across workers. Do not use them for cross-task state.
+- Only the closure's own code travels to the worker. Functions, classes and constants defined in your script are **not available** inside tasks — calling them can crash the process. Define helpers inside the task closure, or `require` them from it.
 - Only the shared containers (Atomic, Map, Set, ConcurrentQueue) are built for cross-thread access.
 
 ## Task rules
 
-A task is a **closure plus a serializable argument array**. v1 copies the closure's op_array to persistent storage; the copy fails — throwing `GCD\CaptureException` — when the closure:
+A task is a **closure plus an argument array**. v1 copies the closure's op_array to persistent storage; the copy fails — throwing `GCD\CaptureException` — when the closure:
 
 - captures variables (the `use` construct),
-- declares static variables,
-- contains try/catch.
+- declares static variables.
 
-Pass everything the task needs through `$argv` instead:
+try/catch inside a task is allowed. Pass everything the task needs through `$argv` instead:
 
 ```php
 $q = GCD\queue_create('rules', 1);
@@ -52,7 +52,7 @@ try {
 }
 ```
 
-Argument values are deep-copied; keep them serializable (scalars, arrays, serializable objects).
+Argument values are deep-copied. **Only `null`, booleans, integers, floats, strings, and arrays of those are supported.** Objects (including `GCD\Data`), closures and resources are not: passing them can crash the process. Move object data as strings and rebuild it inside the task.
 
 ## Handle objects
 

@@ -18,14 +18,14 @@ GCD\queue_create(string $label, int $width = 1): GCD\Queue
 
 | 名称 | 类型 | 说明 |
 |---|---|---|
-| `$label` | `string` | 可读的队列名（必填） |
+| `$label` | `string` | 队列名（必填）；仅存储，当前无 API 暴露 |
 | `$width` | `int` | 最大并发任务数；小于 1 的值按 1 处理 |
 
 **返回值** —— 新建的 `GCD\Queue`。宽度 1 为串行（FIFO）；大于 1 为并发。
 
 **错误与异常** —— 参数类型错误时抛标准 `TypeError`。
 
-**备注** —— label 仅用于诊断，不会把队列注册到任何地方。
+**备注** —— label 被存储但无 API 暴露；不会把队列注册到任何地方。
 
 **示例**
 
@@ -80,11 +80,11 @@ GCD\current_queue(): ?GCD\Queue
 
 **参数** —— 无。
 
-**返回值** —— 当前任务正在其上执行的队列；主线程 / 任务之外返回 `null`。
+**返回值** —— **仅在宽度 1（串行）队列上执行任务时**返回该队列；主线程、任务之外、并发（宽度 > 1）队列上的任务内均返回 `null`。
 
 **错误与异常** —— 无。
 
-**备注** —— 线程局部：每个 worker 报告自己的队列。配合 `queue_get_specific` 读取队列上下文。
+**备注** —— 线程局部，且仅串行队列设置：`current_queue()` + `queue_get_specific()` 模式只在串行队列任务内有效。
 
 **示例**
 
@@ -197,7 +197,7 @@ GCD\queue_set_specific(GCD\Queue $queue, string $key, mixed $value): void
 |---|---|---|
 | `$queue` | `GCD\Queue` | 目标队列 |
 | `$key` | `string` | 上下文键 |
-| `$value` | `mixed` | 值；必须可序列化（深拷贝到持久存储） |
+| `$value` | `mixed` | 仅 null/bool/int/float/string 及它们的数组（深拷贝；对象抛 SerializationException） |
 
 **返回值** —— 无。
 
@@ -257,7 +257,7 @@ GCD\queue_set_target(GCD\Queue $queue, GCD\Queue $target): void
 
 **错误与异常** —— 任一参数不是 Queue 时抛 `TypeError`；自指向抛 `ValueError`（"queue cannot target itself"）；成环抛 `ValueError`（"target queue cycle"）。
 
-**备注** —— QoS 解析沿目标链进行（见 `queue_get_qos`）。
+**备注** —— QoS 解析沿目标链进行（见 `queue_get_qos`）。保持目标句柄存活：v1 不持有引用，unset 目标变量会使链失效。
 
 **示例**
 

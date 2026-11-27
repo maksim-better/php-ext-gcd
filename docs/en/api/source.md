@@ -11,7 +11,7 @@
 **Signature**
 
 ```text
-GCD\source_create(int $type, int $handle = 0, int $mask = 0, ?GCD\Queue $queue = null): GCD\Source
+GCD\source_create(int $type, int $handle = 0, int $mask = 0, GCD\Queue $queue): GCD\Source
 ```
 
 **Parameters**
@@ -21,7 +21,7 @@ GCD\source_create(int $type, int $handle = 0, int $mask = 0, ?GCD\Queue $queue =
 | `$type` | `int` | One of the [source type constants](#source-type-constants) |
 | `$handle` | `int` | Type-dependent: signal number (SIGNAL), child pid (PROC), raw fd (READ/WRITE); unused for TIMER/DATA_ADD |
 | `$mask` | `int` | Accepted but not applied in v1 |
-| `$queue` | `GCD\Queue\|null` | Queue the handler is dispatched to |
+| `$queue` | `GCD\Queue` | Optional — omit the argument (explicit `null` throws TypeError); queue the handler is dispatched to |
 
 **Return** — A new, suspended source.
 
@@ -60,7 +60,7 @@ GCD\source_set_event_handler(GCD\Source $source, Closure $handler): void
 | Name | Type | Description |
 |---|---|---|
 | `$source` | `GCD\Source` | Source to configure |
-| `$handler` | `Closure` | User-function closure; same v1 rules (no captures/statics/try-catch) |
+| `$handler` | `Closure` | User-function closure; same v1 rules (no captures/statics; try/catch allowed) |
 
 **Return** — Nothing.
 
@@ -84,7 +84,7 @@ GCD\source_set_timer(GCD\Source $source, float $start, float $interval, float $l
 |---|---|---|
 | `$source` | `GCD\Source` | A TIMER source |
 | `$start` | `float` | Seconds before the first fire |
-| `$interval` | `float` | Seconds between fires — always pass it explicitly (v1 does not initialize it when omitted) |
+| `$interval` | `float` | Seconds between fires — always pass it explicitly: omitted, it is indeterminate (often a tight fire loop) |
 | `$leeway` | `float` | Accepted but not applied in v1 |
 
 **Return** — Nothing.
@@ -113,7 +113,7 @@ GCD\source_resume(GCD\Source $source): void
 
 **Errors** — `TypeError` ("expected GCD\Source") for a non-Source.
 
-**Notes** — Starts the watcher thread; resuming an already-running source is a no-op. For SIGNAL sources the signal is blocked in the calling thread so spawned workers inherit the mask and delivery goes to `sigwait`.
+**Notes** — Starts the watcher thread; resuming an already-running source is a no-op. For SIGNAL sources the signal is blocked in the calling thread **only**: workers created by earlier dispatches do not inherit the mask, and an incoming signal can then terminate the process. Arm signal sources before your first dispatch.
 
 **Example**
 
@@ -234,4 +234,4 @@ echo GCD\source_get_data($src);   // 5 — not resumed, nothing consumed
 | `GCD\SOURCE_PROC` | 5 | child exit (`$handle` = pid) | none |
 | `GCD\SOURCE_DATA_ADD` | 6 | accumulator nonzero | `int` coalesced sum |
 
-READ/WRITE take a raw integer file descriptor, which plain PHP userland cannot extract from a stream; use them from code that owns real fds (e.g. via FFI). PROC requires ext-pcntl; SIGNAL requires ext-posix.
+READ/WRITE take a raw integer file descriptor, which plain PHP userland cannot extract from a stream; use them from code that owns real fds (e.g. via FFI). The PROC example uses ext-pcntl and the SIGNAL example ext-posix; the source types themselves only need a pid / signal number.

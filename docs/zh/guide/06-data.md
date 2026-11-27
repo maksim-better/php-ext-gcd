@@ -2,7 +2,7 @@
 
 [English](../../en/guide/06-data.md) | [中文](../../zh/guide/06-data.md)
 
-`GCD\Data` 是不可变、二进制安全的字节缓冲。缓冲拷贝到持久存储，可在线程间安全传递。
+`GCD\Data` 是不可变、二进制安全的字节缓冲。Data 对象只存在于创建它的运行时，无法传给任务；跨线程移动字节请传字符串（经 `$argv`、Map 或 ConcurrentQueue），在任务内调 `data_create`。
 
 ## 创建与读取
 

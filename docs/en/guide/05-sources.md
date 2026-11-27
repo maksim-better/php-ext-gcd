@@ -22,11 +22,11 @@ $n = $c->get();
 echo ($n >= 3 && $n <= 12) ? 'timer-ok' : "bad:$n";
 ```
 
-Always pass the interval explicitly. `leeway` is accepted but not applied in v1.
+Always pass the interval explicitly: omitted, it is indeterminate (often a tight fire loop). `leeway` is accepted but not applied in v1.
 
 ## Signals
 
-SIGNAL sources deliver via `sigwait` on a dedicated thread — safe in ZTS, no async-signal hazards. `source_resume` blocks the signal in the calling thread so workers inherit the mask. Requires ext-posix:
+SIGNAL sources deliver via `sigwait` on a dedicated thread. `source_resume` blocks the signal in the calling thread **only** — workers already created by earlier dispatches do not inherit the mask, and an incoming signal can then terminate the process. **Arm signal sources before your first dispatch.** The example uses ext-posix:
 
 ```php
 $q = GCD\queue_create('w', 2);
@@ -46,7 +46,7 @@ echo $c->get();   // 1
 
 ## Child processes
 
-PROC sources poll `waitpid` (10ms) and fire once when the child exits. Requires ext-pcntl:
+PROC sources poll `waitpid` (10ms) and fire once when the child exits. The example uses ext-pcntl:
 
 ```php
 $pid = pcntl_fork();

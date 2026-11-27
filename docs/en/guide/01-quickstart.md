@@ -5,7 +5,7 @@
 ## Requirements
 
 - **ZTS PHP 8.4–8.6.** 8.6 is verified locally (29/29 tests); 8.4 is the Docker build target; 8.5 is expected compatible but unverified; 8.2/8.3 are not promised.
-- Linux (epoll) or macOS (kqueue). NTS, FPM and Windows are **not supported** — the extension rejects NTS builds at compile time.
+- Linux or macOS (poll-based event sources). NTS, FPM and Windows are **not supported** — the extension rejects NTS builds at compile time.
 - C toolchain: clang/gcc, autoconf, make, phpize.
 
 Check your PHP: `php -i | grep 'Thread Safety'` must say `enabled`.
@@ -45,7 +45,7 @@ php -d extension=modules/gcd.so -m | grep gcd
 
 ## Your first concurrent task
 
-Tasks are closures plus a serializable argument array. Workers run in isolated PHP runtimes, so a task's `echo` does not reach your script's output — pass results back through files or [shared containers](07-containers.md):
+Tasks are closures plus an argument array (scalars and arrays only — see [task rules](02-concepts.md#task-rules)). Worker output is unsynchronized, so pass results back through files or [shared containers](07-containers.md):
 
 ```php
 $q = GCD\queue_create('demo', 2);          // concurrent queue, width 2

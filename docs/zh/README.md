@@ -11,7 +11,7 @@
 3. [派发任务](guide/03-dispatch.md) —— async/sync、barrier、apply、once
 4. [同步原语](guide/04-sync.md) —— group 与 semaphore
 5. [事件源](guide/05-sources.md) —— 定时器、信号、子进程、文件描述符
-6. [数据缓冲](guide/06-data.md) —— dispatch_data 与 fd 读写
+6. [数据缓冲](guide/06-data.md) —— 字节缓冲与 fd 读写
 7. [共享容器](guide/07-containers.md) —— Atomic、Map、Set、ConcurrentQueue
 8. [错误处理](guide/08-errors.md) —— 处理器与异常
 9. [QoS 与主循环](guide/09-qos-mainloop.md) —— 优先级、main()/drain()

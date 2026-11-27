@@ -15,8 +15,8 @@ GCD\async(GCD\Queue $queue, Closure $task, array $argv = []): void
 | Name | Type | Description |
 |---|---|---|
 | `$queue` | `GCD\Queue` | Destination queue |
-| `$task` | `Closure` | User-function closure; no captures, statics or try/catch (v1) |
-| `$argv` | `array` | Arguments passed to the closure; values must be serializable |
+| `$task` | `Closure` | User-function closure; no captures or statics (v1); try/catch allowed |
+| `$argv` | `array` | Arguments passed to the closure; only null/bool/int/float/string and arrays of those — objects can crash the process |
 
 **Return** — Nothing (`null`). Does not wait for the task.
 
@@ -75,7 +75,7 @@ GCD\barrier_async(GCD\Queue $queue, Closure $task, array $argv = []): void
 
 **Errors** — Same as `async`.
 
-**Notes** — The barrier task waits for in-flight tasks on the queue, then runs exclusively: no other task starts while it runs. Submissions after the barrier queue up behind it.
+**Notes** — The barrier task waits for tasks already in flight when it starts, then runs exclusively: no other task starts while it runs. Tasks submitted after the barrier may start before it — there is no ordering guarantee for later submissions.
 
 **Example**
 
@@ -104,7 +104,7 @@ GCD\barrier_sync(GCD\Queue $queue, Closure $task, array $argv = []): void
 
 **Errors** — Same as `async`. No deadlock guard (unlike `sync`).
 
-**Notes** — Drains in-flight tasks, runs the barrier exclusively, then returns. The classic read-write lock pattern: readers via `async`, writer via `barrier_sync`.
+**Notes** — Drains currently in-flight tasks, runs the barrier exclusively, then returns. Useful as a read-write lock pattern (readers via `async`, writer via `barrier_sync`), but later submissions are not ordered behind the barrier.
 
 **Example**
 

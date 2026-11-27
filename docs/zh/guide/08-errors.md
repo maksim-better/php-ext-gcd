@@ -4,8 +4,8 @@
 
 ## 两种失败
 
-- **派发期异常** —— 句柄类型错误、`CaptureException`、`SerializationException`、`sync` 死锁保护。同步抛给调用方；在脚本里用普通 try/catch 捕获。
-- **任务内异常** —— 任务运行时抛出的一切。永远不到达调用方；走下面的上报层。
+- **派发期异常** —— 句柄类型错误、`CaptureException`、`SerializationException`。同步抛给调用方；在脚本里用普通 try/catch 捕获。
+- **任务内异常** —— 任务运行时抛出的一切，含 `sync` 死锁保护。永远不到达调用方；走下面的上报层。
 
 ## 上报层级
 
@@ -15,7 +15,7 @@
 2. 否则调用**全局处理器**（`set_error_handler`），
 3. 否则**静默丢弃异常**。
 
-处理器接收 `(string $message, string $className)`，在失败任务的 worker 中运行，且抛异常也无用——自身的异常同样被丢弃。结果通过共享容器记录：
+处理器接收 `(string $message, string $className)`，在失败任务的 worker 中运行，且抛异常也无用——自身的异常同样被丢弃。v1 中 `Error` 系异常（含 GCD 异常）的 `$message` 为空——按 `$className` 路由。结果通过共享容器记录：
 
 ```php
 $errors = new GCD\Atomic(0, 'err');
@@ -48,7 +48,7 @@ echo $global->get(), "\n";   // 0
 echo $local->get();          // 1
 ```
 
-处理器闭包与任务遵守同样的 v1 规则：无捕获、静态变量、try/catch。
+处理器闭包与任务遵守同样的 v1 规则：无捕获、静态变量（允许 try/catch）。捕获变量的全局处理器会被静默忽略——请验证它确实运行。
 
 ## 捕获派发期异常
 
@@ -61,4 +61,4 @@ try {
 }
 ```
 
-死锁保护在任务内触发，需经处理器观察——[派发指南](03-dispatch.md#async-or-sync)给出完整模式。三个异常类均继承 `Error`；见[错误参考](../api/errors.md)。
+死锁保护在任务内触发，需经处理器观察——[派发指南](03-dispatch.md#async-还是-sync)给出完整模式。三个异常类均继承 `Error`；见[错误参考](../api/errors.md)。

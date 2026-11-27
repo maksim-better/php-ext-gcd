@@ -2,7 +2,7 @@
 
 [English](../../en/guide/06-data.md) | [中文](../../zh/guide/06-data.md)
 
-`GCD\Data` is an immutable, binary-safe byte buffer. Buffers are copied to persistent storage, so they travel safely between threads.
+`GCD\Data` is an immutable, binary-safe byte buffer. A Data object lives in the runtime that created it and cannot be passed to tasks; to move bytes between threads, pass a string (via `$argv`, Map or ConcurrentQueue) and call `data_create` inside the task.
 
 ## Creating and reading
 

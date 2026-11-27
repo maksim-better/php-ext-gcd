@@ -5,7 +5,7 @@
 ## 环境要求
 
 - **ZTS PHP 8.4–8.6。** 8.6 本机实测（29/29 通过）；8.4 为 Docker 构建目标；8.5 理论兼容未验证；8.2/8.3 不承诺。
-- Linux（epoll）或 macOS（kqueue）。NTS、FPM、Windows **不支持**——扩展在编译期拒绝 NTS 构建。
+- Linux 或 macOS（基于 poll 的事件源）。NTS、FPM、Windows **不支持**——扩展在编译期拒绝 NTS 构建。
 - C 工具链：clang/gcc、autoconf、make、phpize。
 
 检查你的 PHP：`php -i | grep 'Thread Safety'` 必须为 `enabled`。
@@ -45,7 +45,7 @@ php -d extension=modules/gcd.so -m | grep gcd
 
 ## 第一个并发任务
 
-任务 = 闭包 + 可序列化参数数组。worker 运行在隔离的 PHP 运行时里，任务中的 `echo` 不会到达脚本输出——结果通过文件或[共享容器](07-containers.md)传回：
+任务 = 闭包 + 参数数组（仅标量与数组——见[任务规则](02-concepts.md#任务规则)）。worker 输出无同步，结果通过文件或[共享容器](07-containers.md)传回：
 
 ```php
 $q = GCD\queue_create('demo', 2);          // 并发队列，宽度 2

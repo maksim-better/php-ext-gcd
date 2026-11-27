@@ -28,11 +28,13 @@ echo $hits->get();   // 1 —— 保护触发，没有挂死
 
 ## Barrier
 
-barrier 任务等待队列上在途任务结束，然后**独占**执行——运行期间没有其他任务启动。由此得到读写锁模式：
+barrier 任务等待它启动时已在途的任务结束，然后**独占**执行——运行期间没有其他任务启动。由此得到读写锁模式：
 
 - 读者：[`async`](../api/dispatch.md#async)（可多个并行），
-- 写者：[`barrier_sync`](../api/dispatch.md#barrier_sync)（独占，且在所有读者之后），
+- 写者：[`barrier_sync`](../api/dispatch.md#barrier_sync)（独占，且在所有当前读者之后），
 - 或用 [`barrier_async`](../api/dispatch.md#barrier_async) 非阻塞地提交写者。
+
+顺序注意：barrier *之后*提交的任务可能先于它运行——barrier 只等待已在途的工作。
 
 ## apply 并行迭代
 
@@ -63,4 +65,4 @@ GCD\once('boot', function () {
 
 - [`GCD\drain()`](09-qos-mainloop.md) —— 等待未完成的工作结束（脚本/批处理风格）。
 - [`group_wait`](04-sync.md) —— 等待特定一组任务。
-- [`GCD\main()`](09-qos-mainloop.md) —— 长驻服务的回调驱动循环。
+- [`GCD\main()`](09-qos-mainloop.md) —— v1 中等价于无超时的 `drain()`；见 [QoS 与主循环](09-qos-mainloop.md)。

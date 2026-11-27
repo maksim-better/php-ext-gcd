@@ -4,7 +4,7 @@
 
 ## Group 句柄
 
-`GCD\Group` 是无方法的句柄对象，由 `group_create` 创建。它跟踪未完成工作的计数；`group_wait` 阻塞到计数归零。
+`GCD\Group` 是无方法的句柄对象，由 `group_create` 创建。它跟踪未完成工作的计数；`group_wait` 阻塞到计数归零。v1 中触发过 `group_notify` 回调的 group 是单批次的：复用可能使 `group_wait` 提前返回——使用通知时每批新建 group。
 
 ## group_create
 
@@ -43,7 +43,7 @@ GCD\group_async(GCD\Group $group, GCD\Queue $queue, Closure $task, array $argv =
 |---|---|---|
 | `$group` | `GCD\Group` | 要加入的 group |
 | `$queue` | `GCD\Queue` | 目标队列 |
-| `$task` | `Closure` | 规则同 `async`（无捕获/静态/try-catch） |
+| `$task` | `Closure` | 规则同 `async`（无捕获/静态；允许 try/catch） |
 | `$argv` | `array` | 可序列化参数 |
 
 **返回值** —— 无（`null`）。不等待。
@@ -164,7 +164,7 @@ GCD\group_notify(GCD\Group $group, GCD\Queue $queue, Closure $task): void
 
 **错误与异常** —— `TypeError`（"expected GCD\Group and GCD\Queue"）；`TypeError`（"notify must be a user-function Closure"）；`GCD\CaptureException`（"notify closure unsupported in v1"）。
 
-**备注** —— 计数归零时回调被派发到 `$queue`——在 worker 上运行，而非调用线程。可注册多个通知；结果通过容器共享。
+**备注** —— 计数归零时回调被派发到 `$queue`——在 worker 上运行，而非调用线程。可注册多个通知；结果通过容器共享。通知触发后，该 group 在 v1 中为单批次（见[句柄说明](#group-句柄)）。
 
 **示例**
 

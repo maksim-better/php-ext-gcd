@@ -41,3 +41,24 @@
 - READ/WRITE 与 fd I/O 模式用 ```text 示意（无可运行示例），见 Task 5 Ruling。
 - 任务内异常经「队列处理器 → 全局处理器 → 静默丢弃」上报，不达调用方（src/runtime/error.c:16-41）。
 - drain 只等已在途工作，不等未来源事件（src/runtime/thread_pool.c:131-152）。
+
+## 最终审查新增差异（2026-11-27，整分支审查后逐条核实）
+
+文档已按以下核实行为修正；对应 C 缺陷列为后续修复任务（不在本文档计划范围）：
+
+| 行为 | 核实结果 | C 后续建议 |
+|---|---|---|
+| argv 含对象 | SIGSEGV（exit 139）；copy.c 仅支持 null/bool/int/float/string/array，task.c 忽略拷贝失败 | gcd_task_build 拷贝失败应抛 SerializationException |
+| Set add/contains/remove 含闭包/资源 | SIGSEGV；make_key 不检查 php_var_serialize 失败 | set.c make_key 检查失败并抛异常 |
+| 池已启动后 resume SIGNAL 源 | 进程被信号终止（exit 158）；掩码仅阻塞调用线程 | 池启动前/进程级阻塞源信号 |
+| 任务调用脚本级函数 | SIGBUS（exit 138）；仅闭包 op_array 被拷贝 | 未定义函数应抛可捕获 Error |
+| try/catch 任务闭包 | 实际被接受（copy.c 拷贝 try_catch_array）；C 错误消息过时 | 更新 copy.c 消息或补检查 |
+| 全局 set_error_handler 捕获闭包 | 静默置空（error.c 不检查拷贝结果） | 仿 queue 版抛 CaptureException |
+| current_queue() | 仅 width-1 队列任务内设置（task.c:128-134） | 如需全队列支持另行实现 |
+| 处理器 $message | Error 系异常为空（error.c:21 经 zend_ce_exception 读属性） | 按异常自身 ce 读 message |
+| barrier 顺序 | 后续提交可先于 barrier 运行（task.c:108-126 仅等启动时在途） | 如需顺序保证另行实现 |
+| group_notify 后复用 group | 计数减至 -1，group_wait 提前返回（notify 任务带 t->group） | notify 任务不应 leave group |
+| queue_set_target 生命周期 | 不 retain 目标；unset 后 QoS 解析读已释放内存 | retain/release 目标 |
+| echo / 全局变量 | worker 输出直达 STDOUT（无同步）；同 worker 的 async 任务间全局变量可泄漏 | 文档已警示 |
+| source_create 显式 null queue | TypeError（Z_PARAM_OBJECT 非 nullable） | 文档已改为省略参数 |
+| timer interval 省略 | 未初始化栈值，行为不确定 | C 侧给默认值 |

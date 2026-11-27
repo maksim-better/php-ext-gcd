@@ -11,7 +11,7 @@ GCD-style (Grand Central Dispatch) concurrency for ZTS PHP: dispatch closures on
 3. [Dispatching work](guide/03-dispatch.md) — async/sync, barriers, apply, once
 4. [Synchronization](guide/04-sync.md) — groups and semaphores
 5. [Event sources](guide/05-sources.md) — timers, signals, processes, file descriptors
-6. [Data buffers](guide/06-data.md) — dispatch_data and fd I/O
+6. [Data buffers](guide/06-data.md) — byte buffers and fd I/O
 7. [Shared containers](guide/07-containers.md) — Atomic, Map, Set, ConcurrentQueue
 8. [Error handling](guide/08-errors.md) — handlers and exceptions
 9. [QoS and the main loop](guide/09-qos-mainloop.md) — priorities, main()/drain()

@@ -18,14 +18,14 @@ GCD\queue_create(string $label, int $width = 1): GCD\Queue
 
 | Name | Type | Description |
 |---|---|---|
-| `$label` | `string` | Human-readable queue name (required) |
+| `$label` | `string` | Queue name (required); stored, not currently exposed |
 | `$width` | `int` | Maximum concurrent tasks; values < 1 are clamped to 1 |
 
 **Return** — A new `GCD\Queue`. Width 1 makes it serial (FIFO); width > 1 makes it concurrent.
 
 **Errors** — Standard `TypeError` on wrong argument types.
 
-**Notes** — The label is for diagnostics; it does not register the queue anywhere.
+**Notes** — The label is stored but not exposed by any API; it does not register the queue anywhere.
 
 **Example**
 
@@ -80,11 +80,11 @@ GCD\current_queue(): ?GCD\Queue
 
 **Parameters** — None.
 
-**Return** — The queue the calling task is executing on, or `null` on the main thread / outside a task.
+**Return** — The calling task's queue **only while running on a width-1 (serial) queue**; `null` on the main thread, outside tasks, and inside tasks on concurrent (width > 1) queues.
 
 **Errors** — None.
 
-**Notes** — Thread-local: each worker reports its own queue. Useful with `queue_get_specific` for per-queue context.
+**Notes** — Thread-local, and only set for serial queues: the `current_queue()` + `queue_get_specific()` pattern works only inside serial-queue tasks.
 
 **Example**
 
@@ -197,7 +197,7 @@ GCD\queue_set_specific(GCD\Queue $queue, string $key, mixed $value): void
 |---|---|---|
 | `$queue` | `GCD\Queue` | Target queue |
 | `$key` | `string` | Context key |
-| `$value` | `mixed` | Value; must be serializable (deep-copied to persistent storage) |
+| `$value` | `mixed` | Only null/bool/int/float/string and arrays of those (deep-copied; objects throw SerializationException) |
 
 **Return** — Nothing.
 
@@ -257,7 +257,7 @@ GCD\queue_set_target(GCD\Queue $queue, GCD\Queue $target): void
 
 **Errors** — `TypeError` if either argument is not a Queue; `ValueError` ("queue cannot target itself") for self-targeting; `ValueError` ("target queue cycle") if the chain would loop.
 
-**Notes** — QoS resolution walks the target chain (see `queue_get_qos`).
+**Notes** — QoS resolution walks the target chain (see `queue_get_qos`). Keep the target handle alive: v1 does not retain it, and unsetting the target variable invalidates the chain.
 
 **Example**
 

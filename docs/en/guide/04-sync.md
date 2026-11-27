@@ -53,7 +53,7 @@ GCD\drain();
 echo $c->get();   // 1
 ```
 
-The callback runs on a worker of the notify queue, so share results through containers.
+The callback runs on a worker of the notify queue, so share results through containers. In v1 a group with a notify callback is one-shot: create a fresh group for the next batch, or `group_wait` may return early.
 
 ## Semaphores: limiting concurrency
 

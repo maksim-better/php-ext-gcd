@@ -58,7 +58,7 @@ GCD\group_wait($g);
 echo $s->count();   // 4 —— 8 个并发 add，4 个不同值
 ```
 
-不可序列化的值被拒绝：`Map::set` 与 `ConcurrentQueue::push` 抛 `GCD\SerializationException`。
+`Map::set` 与 `ConcurrentQueue::push` 仅接受标量与数组（对象抛 `GCD\SerializationException`）。`Set` 用 PHP 序列化：可序列化对象可用，但闭包与资源可能使进程崩溃。
 
 ## ConcurrentQueue：生产者–消费者
 

@@ -4,7 +4,7 @@
 
 ## Data 类
 
-`GCD\Data` 是只有一个方法 `size(): int` 的不可变字节缓冲。用 `data_create`、`data_concat`、`data_subrange` 创建；用 `data_create_map` 读回字节。缓冲二进制安全、拷贝到持久存储，可与任务共享。
+`GCD\Data` 是只有一个方法 `size(): int` 的不可变字节缓冲。用 `data_create`、`data_concat`、`data_subrange` 创建；用 `data_create_map` 读回字节。缓冲二进制安全。`GCD\Data` 对象无法跨运行时：经 `$argv` 传递可能使进程崩溃，容器也拒绝它。跨线程移动字节请传字符串，在任务内调 `data_create`。
 
 ## data_create
 
