@@ -84,7 +84,7 @@ GCD\source_set_timer(GCD\Source $source, float $start, float $interval, float $l
 |---|---|---|
 | `$source` | `GCD\Source` | TIMER 源 |
 | `$start` | `float` | 首次触发前的秒数 |
-| `$interval` | `float` | 触发间隔秒数——务必显式传入：省略时其值不确定（常表现为紧密触发循环） |
+| `$interval` | `float` | 触发间隔秒数；省略或 <= 0 表示只触发一次（一次性） |
 | `$leeway` | `float` | v1 接受但不应用 |
 
 **返回值** —— 无。
@@ -113,7 +113,7 @@ GCD\source_resume(GCD\Source $source): void
 
 **错误与异常** —— 非 Source 抛 `TypeError`（"expected GCD\Source"）。
 
-**备注** —— 启动监视线程；重复 resume 无副作用。SIGNAL 源只在调用线程阻塞该信号：先前派发已创建的 worker 不继承掩码，此时收到信号可能终止进程。请在首次派发之前启动信号源。
+**备注** —— 启动监视线程；重复 resume 无副作用。SIGNAL 源把信号加入进程级掩码，应用到每个 worker 与源线程，无论线程池何时启动，交付都走 `sigwait`。源信号在进程存续期间保持阻塞。
 
 **示例**
 

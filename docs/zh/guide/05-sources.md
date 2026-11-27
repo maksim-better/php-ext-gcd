@@ -22,11 +22,11 @@ $n = $c->get();
 echo ($n >= 3 && $n <= 12) ? 'timer-ok' : "bad:$n";
 ```
 
-间隔务必显式传入：省略时其值不确定（常表现为紧密触发循环）。`leeway` v1 接受但不应用。
+省略间隔（或传 <= 0）为一次性定时器；传正间隔则重复。`leeway` v1 接受但不应用。
 
 ## 信号
 
-SIGNAL 源在专用线程上经 `sigwait` 交付。`source_resume` 只在调用线程阻塞该信号——先前派发已创建的 worker 不继承掩码，此时收到信号可能终止进程。**请在首次派发之前启动信号源。**示例使用 ext-posix：
+SIGNAL 源在专用线程上经 `sigwait` 交付。`source_resume` 把信号加入进程级掩码，应用到每个 worker 与源线程，因此线程池启动后再启动源也安全。源信号在进程存续期间保持阻塞。示例使用 ext-posix：
 
 ```php
 $q = GCD\queue_create('w', 2);

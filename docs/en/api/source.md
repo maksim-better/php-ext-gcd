@@ -84,7 +84,7 @@ GCD\source_set_timer(GCD\Source $source, float $start, float $interval, float $l
 |---|---|---|
 | `$source` | `GCD\Source` | A TIMER source |
 | `$start` | `float` | Seconds before the first fire |
-| `$interval` | `float` | Seconds between fires — always pass it explicitly: omitted, it is indeterminate (often a tight fire loop) |
+| `$interval` | `float` | Seconds between fires; omitted or <= 0 means fire once (one-shot) |
 | `$leeway` | `float` | Accepted but not applied in v1 |
 
 **Return** — Nothing.
@@ -113,7 +113,7 @@ GCD\source_resume(GCD\Source $source): void
 
 **Errors** — `TypeError` ("expected GCD\Source") for a non-Source.
 
-**Notes** — Starts the watcher thread; resuming an already-running source is a no-op. For SIGNAL sources the signal is blocked in the calling thread **only**: workers created by earlier dispatches do not inherit the mask, and an incoming signal can then terminate the process. Arm signal sources before your first dispatch.
+**Notes** — Starts the watcher thread; resuming an already-running source is a no-op. For SIGNAL sources the signal is added to a process-wide mask applied to every worker and source thread, so delivery goes to `sigwait` regardless of when the pool was started. Source signals stay blocked for the life of the process.
 
 **Example**
 

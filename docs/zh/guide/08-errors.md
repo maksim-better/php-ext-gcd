@@ -15,7 +15,7 @@
 2. 否则调用**全局处理器**（`set_error_handler`），
 3. 否则**静默丢弃异常**。
 
-处理器接收 `(string $message, string $className)`，在失败任务的 worker 中运行，且抛异常也无用——自身的异常同样被丢弃。v1 中 `Error` 系异常（含 GCD 异常）的 `$message` 为空——按 `$className` 路由。结果通过共享容器记录：
+处理器接收 `(string $message, string $className)`，在失败任务的 worker 中运行，且抛异常也无用——自身的异常同样被丢弃。结果通过共享容器记录：
 
 ```php
 $errors = new GCD\Atomic(0, 'err');
@@ -48,7 +48,7 @@ echo $global->get(), "\n";   // 0
 echo $local->get();          // 1
 ```
 
-处理器闭包与任务遵守同样的 v1 规则：无捕获、静态变量（允许 try/catch）。捕获变量的全局处理器会被静默忽略——请验证它确实运行。
+处理器闭包与任务遵守同样的 v1 规则：无捕获、静态变量（允许 try/catch）。捕获变量的处理器抛 `GCD\CaptureException`。
 
 ## 捕获派发期异常
 

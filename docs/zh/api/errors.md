@@ -2,7 +2,7 @@
 
 [English](../../en/api/errors.md) | [中文](../../zh/api/errors.md)
 
-**任务内**抛出的异常永远不会到达派发调用方——`sync` 死锁保护也只能在任务内触发，属于此类。它们走上报层：优先队列级处理器，其次全局处理器，都没有则静默丢弃。处理器接收 `(string $message, string $className)`，在失败任务的 worker 上下文运行；返回值被忽略，处理器自身抛出的异常也被丢弃。v1 中 `Error` 系异常（含三个 GCD 异常）的 `$message` 为**空**——按 `$className` 路由。
+**任务内**抛出的异常永远不会到达派发调用方——`sync` 死锁保护也只能在任务内触发，属于此类。它们走上报层：优先队列级处理器，其次全局处理器，都没有则静默丢弃。处理器接收 `(string $message, string $className)`，在失败任务的 worker 上下文运行；返回值被忽略，处理器自身抛出的异常也被丢弃。
 
 **派发期**抛出的异常（句柄错误、捕获检查、序列化检查）是普通同步异常——在调用脚本里捕获。
 
@@ -18,13 +18,13 @@ GCD\set_error_handler(Closure $handler): void
 
 | 名称 | 类型 | 说明 |
 |---|---|---|
-| `$handler` | `Closure` | `function (string $message, string $className)`；v1 闭包规则（无捕获/静态；允许 try/catch）。不支持的闭包会被静默忽略（不抛异常） |
+| `$handler` | `Closure` | `function (string $message, string $className)`；v1 闭包规则（无捕获/静态；允许 try/catch）。不支持的闭包抛 `GCD\CaptureException` |
 
 **返回值** —— 无。
 
 **错误与异常** —— 非用户闭包抛 `TypeError`（"handler must be a user-function Closure"）。
 
-**备注** —— 进程级兜底，作用于所有未设自身处理器的队列。替换先前的全局处理器。在 worker 中运行，结果通过共享容器记录。v1 中捕获变量或声明静态的处理器会被静默忽略——请验证处理器确实运行。
+**备注** —— 进程级兜底，作用于所有未设自身处理器的队列。替换先前的全局处理器。在 worker 中运行，结果通过共享容器记录。捕获变量或声明静态的处理器抛 `GCD\CaptureException`。
 
 **示例**
 
@@ -82,9 +82,9 @@ echo $local->get();          // 1
 
 **继承** —— `Error`。
 
-**触发条件** —— 闭包无法拷贝到持久存储：捕获变量或声明静态变量（try/catch 实际被接受）。派发期由 `async`/`sync`/`barrier_*`/`apply`/`group_async` 抛出；注册 notify/源/队列级错误处理器时同样检查。全局 `set_error_handler` 不抛异常——不支持的闭包被静默忽略。
+**触发条件** —— 闭包无法拷贝到持久存储：捕获变量或声明静态变量（try/catch 实际被接受）。派发期由 `async`/`sync`/`barrier_*`/`apply`/`group_async` 抛出；注册 notify/源/错误处理器（全局与队列级）时同样检查。
 
-**消息** —— `"closure captures variables or uses statics/try-catch (unsupported in v1)"`（处理器变体措辞略有不同）。消息提到 try/catch，但 v1 实际接受它。
+**消息** —— `"closure captures variables or uses statics (unsupported in v1)"`（处理器变体措辞略有不同）。
 
 **示例**
 

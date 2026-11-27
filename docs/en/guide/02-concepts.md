@@ -52,7 +52,7 @@ try {
 }
 ```
 
-Argument values are deep-copied. **Only `null`, booleans, integers, floats, strings, and arrays of those are supported.** Objects (including `GCD\Data`), closures and resources are not: passing them can crash the process. Move object data as strings and rebuild it inside the task.
+Argument values are deep-copied. **Only `null`, booleans, integers, floats, strings, and arrays of those are supported.** Objects (including `GCD\Data`), closures and resources are not supported and throw `GCD\SerializationException`. Move object data as strings and rebuild it inside the task.
 
 ## Handle objects
 

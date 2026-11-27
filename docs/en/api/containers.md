@@ -294,7 +294,7 @@ $m->count(): int
 
 ## Set
 
-A shared set. Values are identified by their **serialized form** (PHP serialization, so serializable objects are accepted). **Closures and resources are unsupported and can crash the process** — `add`, `contains` and `remove` all serialize the value.
+A shared set. Values are identified by their **serialized form** (PHP serialization, so serializable objects are accepted). **Closures and resources are unsupported and throw `GCD\SerializationException`** — `add`, `contains` and `remove` all serialize the value.
 
 | Method | Signature |
 |---|---|
@@ -361,7 +361,7 @@ $s->add(mixed $value): bool
 
 **Return** — `true` if newly added, `false` if already present.
 
-**Errors** — Unsupported values (closures, resources) can crash the process; keep values to scalars, arrays and serializable objects.
+**Errors** — `GCD\SerializationException` for unsupported values (closures, resources); keep values to scalars, arrays and serializable objects.
 
 **Notes** — Dedup key is the serialized value; safe under concurrent adds.
 
@@ -379,7 +379,7 @@ $s->contains(mixed $value): bool
 
 **Return** — Whether an equal value is present.
 
-**Errors** — Unsupported values (closures, resources) can crash the process.
+**Errors** — `GCD\SerializationException` for unsupported values (closures, resources).
 
 **Notes** — Compares serialized forms.
 
@@ -397,7 +397,7 @@ $s->remove(mixed $value): bool
 
 **Return** — `true` if removed, `false` if absent.
 
-**Errors** — Unsupported values (closures, resources) can crash the process.
+**Errors** — `GCD\SerializationException` for unsupported values (closures, resources).
 
 **Notes** — Mutex-protected.
 

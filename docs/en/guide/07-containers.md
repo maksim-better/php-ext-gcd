@@ -58,7 +58,7 @@ GCD\group_wait($g);
 echo $s->count();   // 4 — eight concurrent adds, four distinct values
 ```
 
-`Map::set` and `ConcurrentQueue::push` accept only scalars and arrays (objects throw `GCD\SerializationException`). `Set` uses PHP serialization: serializable objects work, but closures and resources can crash the process.
+`Map::set` and `ConcurrentQueue::push` accept only scalars and arrays (objects throw `GCD\SerializationException`). `Set` uses PHP serialization: serializable objects work, but closures and resources throw `GCD\SerializationException`.
 
 ## ConcurrentQueue: producer–consumer
 

@@ -80,11 +80,11 @@ GCD\current_queue(): ?GCD\Queue
 
 **参数** —— 无。
 
-**返回值** —— **仅在宽度 1（串行）队列上执行任务时**返回该队列；主线程、任务之外、并发（宽度 > 1）队列上的任务内均返回 `null`。
+**返回值** —— 当前任务所在的队列（串行或并发）；主线程与任务之外返回 `null`。
 
 **错误与异常** —— 无。
 
-**备注** —— 线程局部，且仅串行队列设置：`current_queue()` + `queue_get_specific()` 模式只在串行队列任务内有效。
+**备注** —— 线程局部：每个 worker 报告其任务所在的队列。`current_queue()` + `queue_get_specific()` 模式在任何任务内有效。
 
 **示例**
 
@@ -257,7 +257,7 @@ GCD\queue_set_target(GCD\Queue $queue, GCD\Queue $target): void
 
 **错误与异常** —— 任一参数不是 Queue 时抛 `TypeError`；自指向抛 `ValueError`（"queue cannot target itself"）；成环抛 `ValueError`（"target queue cycle"）。
 
-**备注** —— QoS 解析沿目标链进行（见 `queue_get_qos`）。保持目标句柄存活：v1 不持有引用，unset 目标变量会使链失效。
+**备注** —— QoS 解析沿目标链进行（见 `queue_get_qos`）。目标被持有引用，unset 目标变量后链仍有效。
 
 **示例**
 

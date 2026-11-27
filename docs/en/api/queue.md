@@ -80,11 +80,11 @@ GCD\current_queue(): ?GCD\Queue
 
 **Parameters** — None.
 
-**Return** — The calling task's queue **only while running on a width-1 (serial) queue**; `null` on the main thread, outside tasks, and inside tasks on concurrent (width > 1) queues.
+**Return** — The calling task's queue (serial or concurrent); `null` on the main thread and outside tasks.
 
 **Errors** — None.
 
-**Notes** — Thread-local, and only set for serial queues: the `current_queue()` + `queue_get_specific()` pattern works only inside serial-queue tasks.
+**Notes** — Thread-local: each worker reports the queue its task runs on. The `current_queue()` + `queue_get_specific()` pattern works inside any task.
 
 **Example**
 
@@ -257,7 +257,7 @@ GCD\queue_set_target(GCD\Queue $queue, GCD\Queue $target): void
 
 **Errors** — `TypeError` if either argument is not a Queue; `ValueError` ("queue cannot target itself") for self-targeting; `ValueError` ("target queue cycle") if the chain would loop.
 
-**Notes** — QoS resolution walks the target chain (see `queue_get_qos`). Keep the target handle alive: v1 does not retain it, and unsetting the target variable invalidates the chain.
+**Notes** — QoS resolution walks the target chain (see `queue_get_qos`). The target is retained, so the chain stays valid even if you unset the target variable.
 
 **Example**
 

@@ -2,7 +2,7 @@
 
 [English](../../en/api/errors.md) | [中文](../../zh/api/errors.md)
 
-Exceptions thrown **inside a task** never reach the dispatching caller — this includes the `sync` deadlock guard, which can only fire inside a task. They go through a reporting layer: the queue's error handler if set, otherwise the global handler, otherwise the exception is silently discarded. Handlers receive `(string $message, string $className)` and run in the failing task's worker context; their return value is ignored and exceptions they throw are themselves discarded. For `Error`-derived exceptions (including all three GCD exceptions) `$message` arrives **empty** in v1 — route by `$className`.
+Exceptions thrown **inside a task** never reach the dispatching caller — this includes the `sync` deadlock guard, which can only fire inside a task. They go through a reporting layer: the queue's error handler if set, otherwise the global handler, otherwise the exception is silently discarded. Handlers receive `(string $message, string $className)` and run in the failing task's worker context; their return value is ignored and exceptions they throw are themselves discarded.
 
 Exceptions thrown **at dispatch time** (bad handles, capture checks, serialization checks) are ordinary synchronous exceptions — catch them in the calling script.
 
@@ -18,13 +18,13 @@ GCD\set_error_handler(Closure $handler): void
 
 | Name | Type | Description |
 |---|---|---|
-| `$handler` | `Closure` | `function (string $message, string $className)`; v1 closure rules (no captures/statics; try/catch allowed). An unsupported closure is silently not installed (no exception) |
+| `$handler` | `Closure` | `function (string $message, string $className)`; v1 closure rules (no captures/statics; try/catch allowed). An unsupported closure throws `GCD\CaptureException` |
 
 **Return** — Nothing.
 
 **Errors** — `TypeError` ("handler must be a user-function Closure") for a non-user closure.
 
-**Notes** — Process-global fallback for every queue without its own handler. Replaces any previous global handler. Runs in the worker, so record results through shared containers. A handler that captures variables or declares statics is silently not installed in v1 — verify your handler actually runs.
+**Notes** — Process-global fallback for every queue without its own handler. Replaces any previous global handler. Runs in the worker, so record results through shared containers. A handler that captures variables or declares statics throws `GCD\CaptureException`.
 
 **Example**
 
@@ -82,9 +82,9 @@ echo $local->get();          // 1
 
 **Inherits** — `Error`.
 
-**Thrown when** — A closure cannot be copied to persistent storage: it captures variables or declares statics (try/catch is actually accepted). Raised at dispatch time by `async`/`sync`/`barrier_*`/`apply`/`group_async`, and when registering notify/source/queue-error handlers. The global `set_error_handler` does not throw — an unsupported closure is silently not installed.
+**Thrown when** — A closure cannot be copied to persistent storage: it captures variables or declares statics (try/catch is actually accepted). Raised at dispatch time by `async`/`sync`/`barrier_*`/`apply`/`group_async`, and when registering notify/source/error handlers (global and queue-level alike).
 
-**Message** — `"closure captures variables or uses statics/try-catch (unsupported in v1)"` (handler variants use their own wording). The message mentions try/catch, but v1 accepts it.
+**Message** — `"closure captures variables or uses statics (unsupported in v1)"` (handler variants use their own wording).
 
 **Example**
 

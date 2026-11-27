@@ -4,7 +4,7 @@
 
 ## The Group handle
 
-`GCD\Group` is a handle object with no methods, created by `group_create`. It tracks a count of outstanding work; `group_wait` blocks until the count reaches zero. A group that has fired a `group_notify` callback is single-batch in v1: reusing it can make `group_wait` return early — create a fresh group per batch when using notifications.
+`GCD\Group` is a handle object with no methods, created by `group_create`. It tracks a count of outstanding work; `group_wait` blocks until the count reaches zero. A group is reusable across batches. Each `group_notify` registration fires once (when the count first reaches zero); register a new notify for each batch you want notified.
 
 ## group_create
 
@@ -164,7 +164,7 @@ GCD\group_notify(GCD\Group $group, GCD\Queue $queue, Closure $task): void
 
 **Errors** — `TypeError` ("expected GCD\Group and GCD\Queue"); `TypeError` ("notify must be a user-function Closure"); `GCD\CaptureException` ("notify closure unsupported in v1").
 
-**Notes** — The callback is dispatched to `$queue` when the count reaches zero — it runs on a worker, not the calling thread. Multiple notifications may be registered; share results through containers. After a notification fires, the group is single-batch in v1 (see [the handle note](#the-group-handle)).
+**Notes** — The callback is dispatched to `$queue` when the count reaches zero — it runs on a worker, not the calling thread. Multiple notifications may be registered; share results through containers. Each registration fires once; the group itself remains reusable (see [the handle note](#the-group-handle)).
 
 **Example**
 

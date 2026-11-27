@@ -22,11 +22,11 @@ $n = $c->get();
 echo ($n >= 3 && $n <= 12) ? 'timer-ok' : "bad:$n";
 ```
 
-Always pass the interval explicitly: omitted, it is indeterminate (often a tight fire loop). `leeway` is accepted but not applied in v1.
+Omit the interval (or pass <= 0) for a one-shot timer; pass a positive interval to repeat. `leeway` is accepted but not applied in v1.
 
 ## Signals
 
-SIGNAL sources deliver via `sigwait` on a dedicated thread. `source_resume` blocks the signal in the calling thread **only** — workers already created by earlier dispatches do not inherit the mask, and an incoming signal can then terminate the process. **Arm signal sources before your first dispatch.** The example uses ext-posix:
+SIGNAL sources deliver via `sigwait` on a dedicated thread. `source_resume` adds the signal to a process-wide mask applied to every worker and source thread, so it is safe to arm sources after the pool has started. Source signals stay blocked for the life of the process. The example uses ext-posix:
 
 ```php
 $q = GCD\queue_create('w', 2);

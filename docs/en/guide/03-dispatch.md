@@ -34,7 +34,7 @@ A barrier task waits for tasks already in flight when it starts, then runs **exc
 - writer: [`barrier_sync`](../api/dispatch.md#barrier_sync) (alone, after all current readers),
 - or [`barrier_async`](../api/dispatch.md#barrier_async) to submit the writer without blocking.
 
-Ordering caveat: tasks submitted *after* the barrier may start before it runs — the barrier only waits for work already in flight.
+Tasks submitted *after* the barrier are ordered behind it: the barrier waits for work already in flight, then runs exclusively before any later submission starts.
 
 ## Parallel iteration with apply
 

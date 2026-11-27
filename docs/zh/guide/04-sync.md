@@ -53,7 +53,7 @@ GCD\drain();
 echo $c->get();   // 1
 ```
 
-回调在通知队列的 worker 上运行，结果通过容器共享。v1 中带 notify 回调的 group 是一次性的：下一批请新建 group，否则 `group_wait` 可能提前返回。
+回调在通知队列的 worker 上运行，结果通过容器共享。group 可跨批次复用；每个 notify 注册触发一次——需要每批通知就每批注册新 notify。
 
 ## Semaphore：限制并发
 

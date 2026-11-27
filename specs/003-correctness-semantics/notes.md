@@ -26,6 +26,23 @@
 **后续建议**：用 debug ZTS PHP（docker 路线）复现，评估在 gcd_op_array_copy_persistent
 中归一化 INIT_FCALL 特化 opcode 到通用 handler（通用路径对未定义函数抛可捕获 Error）。
 
-## 其余各项结论
+## 其余各项结论（Task 11 汇总）
 
-（Task 11 汇总；D1/D2/D6/D7/D8/D9/D10/S2 已修复并回归绿。）
+| 项 | 状态 | 验证 |
+|---|---|---|
+| D1 argv 对象 | 已修复 | argv_object.phpt：抛 SerializationException，进程存活 |
+| D2 Set 闭包/资源 | 已修复 | set_nonserializable.phpt：抛 SerializationException（资源类型预检 + 序列化失败检查） |
+| D3 信号掩码 | 已修复 | signal_after_pool.phpt：池启动后 resume 信号源，进程存活、handler 触发；全局掩码 + generation + 空闲 worker 唤醒重掩码 + 源线程应用 |
+| D4 脚本符号 | 延期 | 见上；文档保留警示 |
+| D5 notify | 已修复 | group_notify_reuse.phpt：group 可复用、notify 一次性；no_leave 标志保留生命周期引用；UAF 压力 30 轮无崩溃 |
+| D6 target 生命周期 | 已修复 | target_lifetime.phpt：unset 目标后 QoS 链仍有效；retain/release + 释放级联 |
+| D7 处理器消息 | 已修复 | handler_message.phpt：Error 系收到真实 message（按 ex->ce 读属性） |
+| D8 全局处理器 | 已修复 | global_handler_capture.phpt：捕获闭包抛 CaptureException |
+| D9 timer 默认 | 已修复 | timer_oneshot.phpt：省略 interval 恰好触发一次 |
+| D10 过时消息 | 已修复 | capture_message.phpt：消息不再含 try-catch |
+| S1 barrier 顺序 | 已修复 | barrier_order.phpt：20 轮 0 违序；序号准入 + 原子提交 + 准入 broadcast；并发压力 3 轮无死锁 |
+| S2 current_queue | 已修复 | current_queue_concurrent.phpt：并发队列任务内非 null |
+
+**回归**：release 套件 40/40（29 原有 + 11 新增）；TSan 套件 36/36，src/ 数据竞争 0
+（docker/tsan-test.sh 需先 `phpize --clean` 再生成容器内 Makefile，否则残留宿主路径——脚本既有问题）。
+文档门禁：132 示例、20/20 parity、70/70 锚点、零捕获、零断链。

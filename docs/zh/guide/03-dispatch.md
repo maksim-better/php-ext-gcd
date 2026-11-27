@@ -34,7 +34,7 @@ barrier 任务等待它启动时已在途的任务结束，然后**独占**执�
 - 写者：[`barrier_sync`](../api/dispatch.md#barrier_sync)（独占，且在所有当前读者之后），
 - 或用 [`barrier_async`](../api/dispatch.md#barrier_async) 非阻塞地提交写者。
 
-顺序注意：barrier *之后*提交的任务可能先于它运行——barrier 只等待已在途的工作。
+barrier *之后*提交的任务排在它之后：barrier 等待已在途工作，然后独占执行，之后后续提交才启动。
 
 ## apply 并行迭代
 
