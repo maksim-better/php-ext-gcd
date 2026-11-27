@@ -71,6 +71,7 @@ static void dispatch_handler(gcd_source *s)
 static void *source_thread(void *arg)
 {
     gcd_source *s = arg;
+    gcd_pool_apply_source_mask();
     if (s->type == GCD_SOURCE_TIMER) {
         sleep_sec(s->start);
         while (!atomic_load(&s->cancelled)) {
@@ -280,8 +281,9 @@ PHP_FUNCTION(source_resume)
     if (!s) { zend_throw_exception(zend_ce_type_error, "expected GCD\\Source", 0); RETURN_THROWS(); }
     if (!s->running) {
         if (s->type == GCD_SOURCE_SIGNAL) {
-            /* block in calling thread so spawned workers inherit the mask and
-             * the signal is routed to sigwait rather than default action */
+            /* Add to the process-wide source mask and wake workers to re-mask;
+             * also block in the calling thread. Routes delivery to sigwait. */
+            gcd_pool_block_source_signal(s->handle);
             sigset_t mask;
             sigemptyset(&mask);
             sigaddset(&mask, s->handle);

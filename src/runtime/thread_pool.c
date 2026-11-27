@@ -5,6 +5,7 @@
 #include <stdatomic.h>
 #include <time.h>
 #include <errno.h>
+#include <signal.h>
 
 #define GCD_POOL_DEFAULT_SIZE 4
 
@@ -26,6 +27,29 @@ static pthread_cond_t g_boot_cond = PTHREAD_COND_INITIALIZER;
 static int g_booted;
 static pthread_mutex_t g_init_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+/* Process-wide set of signals owned by SIGNAL sources; every worker and source
+ * thread must block them so delivery goes to sigwait, not default action. */
+static sigset_t g_source_sigset;
+static int g_sigset_inited = 0;
+static atomic_long g_sig_gen;
+
+void gcd_pool_block_source_signal(int signo)
+{
+    pthread_mutex_lock(&g_mutex);
+    if (!g_sigset_inited) { sigemptyset(&g_source_sigset); g_sigset_inited = 1; }
+    sigaddset(&g_source_sigset, signo);
+    atomic_fetch_add(&g_sig_gen, 1);
+    pthread_cond_broadcast(&g_cond);   /* wake idle workers to re-mask */
+    pthread_mutex_unlock(&g_mutex);
+}
+
+void gcd_pool_apply_source_mask(void)
+{
+    pthread_mutex_lock(&g_mutex);
+    if (g_sigset_inited) pthread_sigmask(SIG_BLOCK, &g_source_sigset, NULL);
+    pthread_mutex_unlock(&g_mutex);
+}
+
 static void *worker_main(void *arg)
 {
     (void) arg;
@@ -36,9 +60,15 @@ static void *worker_main(void *arg)
     pthread_mutex_unlock(&g_boot_mutex);
     if (!ok) return NULL;
 
+    uint64_t t_sig_gen = 0;
     for (;;) {
         pthread_mutex_lock(&g_mutex);
-        while (!g_head && !g_shutdown) {
+        for (;;) {
+            if (t_sig_gen != (uint64_t) atomic_load(&g_sig_gen)) {
+                if (g_sigset_inited) pthread_sigmask(SIG_BLOCK, &g_source_sigset, NULL);
+                t_sig_gen = (uint64_t) atomic_load(&g_sig_gen);
+            }
+            if (g_head || g_shutdown) break;
             pthread_cond_wait(&g_cond, &g_mutex);
         }
         if (g_shutdown && !g_head) {
