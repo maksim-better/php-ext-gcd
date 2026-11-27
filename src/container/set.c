@@ -38,15 +38,25 @@ static zend_object *set_create_object(zend_class_entry *ce)
 static void set_free_object(zend_object *object) { zend_object_std_dtor(object); }
 
 /* serialize a value into a request-local key string */
-static void make_key(zval *v, char **key, size_t *len)
+static int make_key(zval *v, char **key, size_t *len)
 {
+    if (Z_TYPE_P(v) == IS_RESOURCE) {
+        zend_throw_exception(gcd_serialization_ce, "value is not serializable", 0);
+        return FAILURE;
+    }
     smart_str buf = {0};
     php_serialize_data_t sd = php_var_serialize_init();
     php_var_serialize(&buf, v, &sd);
     php_var_serialize_destroy(sd);
+    if (EG(exception)) zend_clear_exception();
+    if (!buf.s) {
+        zend_throw_exception(gcd_serialization_ce, "value is not serializable", 0);
+        return FAILURE;
+    }
     *len = ZSTR_LEN(buf.s);
     *key = estrndup(ZSTR_VAL(buf.s), *len);
     zend_string_release(buf.s);
+    return SUCCESS;
 }
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_set_construct, 0, 0, 0)
@@ -98,6 +108,7 @@ PHP_METHOD(Set, add)
     gcd_set *s = set_fetch(Z_OBJ_P(ZEND_THIS))->s;
     char *key; size_t len;
     make_key(v, &key, &len);
+    if (EG(exception)) RETURN_THROWS();
     pthread_mutex_lock(&s->lock);
     int added = !zend_hash_str_exists(&s->ht, key, len);
     if (added) zend_hash_str_add_empty_element(&s->ht, key, len);
@@ -113,6 +124,7 @@ PHP_METHOD(Set, contains)
     gcd_set *s = set_fetch(Z_OBJ_P(ZEND_THIS))->s;
     char *key; size_t len;
     make_key(v, &key, &len);
+    if (EG(exception)) RETURN_THROWS();
     pthread_mutex_lock(&s->lock);
     int exists = zend_hash_str_exists(&s->ht, key, len);
     pthread_mutex_unlock(&s->lock);
@@ -127,6 +139,7 @@ PHP_METHOD(Set, remove)
     gcd_set *s = set_fetch(Z_OBJ_P(ZEND_THIS))->s;
     char *key; size_t len;
     make_key(v, &key, &len);
+    if (EG(exception)) RETURN_THROWS();
     pthread_mutex_lock(&s->lock);
     int removed = zend_hash_str_del(&s->ht, key, len) == SUCCESS;
     pthread_mutex_unlock(&s->lock);
