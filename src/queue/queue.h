@@ -13,6 +13,9 @@ typedef struct _gcd_queue {
     pthread_mutex_t list_mutex;
     struct _gcd_task *head, *tail;  /* pending FIFO list (serial drain) */
     int draining;
+    int inflight;                   /* concurrent width gate */
+    pthread_mutex_t width_mutex;
+    pthread_cond_t width_cond;
 } gcd_queue;
 
 typedef struct {

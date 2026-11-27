@@ -29,6 +29,17 @@ gcd_task *gcd_task_create(zend_op_array *oa, zval *argv, uint32_t argc)
 
 void gcd_task_execute(gcd_task *t)
 {
+    gcd_queue *q = t->queue;
+    int gated = q && q->width > 1;
+    if (gated) {
+        pthread_mutex_lock(&q->width_mutex);
+        while (q->inflight >= q->width) {
+            pthread_cond_wait(&q->width_cond, &q->width_mutex);
+        }
+        q->inflight++;
+        pthread_mutex_unlock(&q->width_mutex);
+    }
+
     /* request-local argv copies */
     zval *params = t->argc ? ecalloc(t->argc, sizeof(zval)) : NULL;
     if (params && Z_TYPE(t->argv) == IS_ARRAY) {
@@ -75,6 +86,13 @@ void gcd_task_execute(gcd_task *t)
         efree(params);
     }
     if (cache) efree(cache);
+
+    if (gated) {
+        pthread_mutex_lock(&q->width_mutex);
+        q->inflight--;
+        pthread_cond_signal(&q->width_cond);
+        pthread_mutex_unlock(&q->width_mutex);
+    }
 
     if (t->is_sync) {
         pthread_mutex_lock(&t->mutex);

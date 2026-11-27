@@ -24,6 +24,8 @@ static zend_object *gcd_queue_create_object(zend_class_entry *ce)
     obj->q->width = 1;
     pthread_mutex_init(&obj->q->drain_lock, NULL);
     pthread_mutex_init(&obj->q->list_mutex, NULL);
+    pthread_mutex_init(&obj->q->width_mutex, NULL);
+    pthread_cond_init(&obj->q->width_cond, NULL);
     return &obj->std;
 }
 
@@ -33,6 +35,8 @@ static void gcd_queue_free_object(zend_object *object)
     if (obj->q) {
         pthread_mutex_destroy(&obj->q->drain_lock);
         pthread_mutex_destroy(&obj->q->list_mutex);
+        pthread_mutex_destroy(&obj->q->width_mutex);
+        pthread_cond_destroy(&obj->q->width_cond);
         free(obj->q->label);
         free(obj->q);
     }
