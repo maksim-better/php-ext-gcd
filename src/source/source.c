@@ -26,7 +26,7 @@ typedef struct {
     zend_op_array *handler;     /* persistent, source-owned */
     gcd_queue *queue;
     double start, interval;
-    volatile int cancelled;
+    atomic_int cancelled;
     pthread_t thread;
     int running;
     atomic_long data;           /* data source accumulator */
@@ -74,7 +74,7 @@ static void *source_thread(void *arg)
     gcd_source *s = arg;
     if (s->type == GCD_SOURCE_TIMER) {
         sleep_sec(s->start);
-        while (!s->cancelled) {
+        while (!atomic_load(&s->cancelled)) {
             dispatch_handler(s);
             sleep_sec(s->interval);
         }
@@ -84,13 +84,13 @@ static void *source_thread(void *arg)
         sigaddset(&mask, s->handle);
         pthread_sigmask(SIG_BLOCK, &mask, NULL);
         int sig;
-        while (!s->cancelled) {
-            if (sigwait(&mask, &sig) == 0 && !s->cancelled) {
+        while (!atomic_load(&s->cancelled)) {
+            if (sigwait(&mask, &sig) == 0 && !atomic_load(&s->cancelled)) {
                 dispatch_handler(s);
             }
         }
     } else if (s->type == GCD_SOURCE_PROC) {
-        while (!s->cancelled) {
+        while (!atomic_load(&s->cancelled)) {
             int status;
             pid_t r = waitpid(s->handle, &status, WNOHANG);
             if (r == s->handle) {
@@ -101,11 +101,11 @@ static void *source_thread(void *arg)
         }
     } else if (s->type == GCD_SOURCE_DATA_ADD) {
         pthread_mutex_lock(&s->data_mutex);
-        while (!s->cancelled) {
-            while (atomic_load(&s->data) == 0 && !s->cancelled) {
+        while (!atomic_load(&s->cancelled)) {
+            while (atomic_load(&s->data) == 0 && !atomic_load(&s->cancelled)) {
                 pthread_cond_wait(&s->data_cond, &s->data_mutex);
             }
-            if (s->cancelled) break;
+            if (atomic_load(&s->cancelled)) break;
             long d = atomic_exchange(&s->data, 0);
             pthread_mutex_unlock(&s->data_mutex);
             if (s->handler && s->queue) {
@@ -133,7 +133,7 @@ static void *source_thread(void *arg)
         struct pollfd pfd;
         pfd.fd = s->handle;
         pfd.events = (s->type == GCD_SOURCE_READ) ? POLLIN : POLLOUT;
-        while (!s->cancelled) {
+        while (!atomic_load(&s->cancelled)) {
             int rc = poll(&pfd, 1, 100);
             if (rc > 0 && (pfd.revents & pfd.events)) {
                 dispatch_handler(s);
@@ -151,6 +151,7 @@ static zend_object *source_create_object(zend_class_entry *ce)
     o->std.handlers = &source_handlers;
     o->s = calloc(1, sizeof(gcd_source));
     o->s->interval = 0;
+    atomic_init(&o->s->cancelled, 0);
     atomic_init(&o->s->data, 0);
     pthread_mutex_init(&o->s->data_mutex, NULL);
     pthread_cond_init(&o->s->data_cond, NULL);
@@ -162,7 +163,7 @@ static void source_free_object(zend_object *object)
     gcd_source_object *o = source_fetch(object);
     if (o->s) {
         if (o->s->running) {
-            o->s->cancelled = 1;
+            atomic_store(&o->s->cancelled, 1);
             if (o->s->type == GCD_SOURCE_SIGNAL) {
                 pthread_kill(o->s->thread, o->s->handle);
             }
@@ -287,7 +288,7 @@ PHP_FUNCTION(source_resume)
             sigaddset(&mask, s->handle);
             pthread_sigmask(SIG_BLOCK, &mask, NULL);
         }
-        s->cancelled = 0;
+        atomic_store(&s->cancelled, 0);
         s->running = 1;
         pthread_create(&s->thread, NULL, source_thread, s);
     }
@@ -300,7 +301,7 @@ PHP_FUNCTION(source_cancel)
     gcd_source *s = source_from_zval(sobj);
     if (!s) { zend_throw_exception(zend_ce_type_error, "expected GCD\\Source", 0); RETURN_THROWS(); }
     if (s->running) {
-        s->cancelled = 1;
+        atomic_store(&s->cancelled, 1);
         if (s->type == GCD_SOURCE_SIGNAL) {
             pthread_kill(s->thread, s->handle);   /* wake sigwait */
         }

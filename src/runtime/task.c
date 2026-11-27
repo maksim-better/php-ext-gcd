@@ -53,6 +53,11 @@ int gcd_invoke(zend_op_array *oa, zval *argv, uint32_t argc)
     memset(&func, 0, sizeof(func));
     func.type = ZEND_USER_FUNCTION;
     func.op_array = *oa;
+    /* per-invocation function_name copy: zend_create_fake_closure addrefs it,
+     * and concurrent invokes of a shared handler op_array would race on the
+     * shared string refcount (TSan-verified). */
+    zend_string *fname_copy = oa->function_name ? zend_string_dup(oa->function_name, 0) : NULL;
+    func.op_array.function_name = fname_copy;
     void **cache = func.op_array.cache_size ? ecalloc(1, func.op_array.cache_size) : NULL;
     ZEND_MAP_PTR_INIT(func.op_array.run_time_cache, cache);
 
@@ -91,6 +96,7 @@ int gcd_invoke(zend_op_array *oa, zval *argv, uint32_t argc)
     EG(current_execute_data) = prev_ex;
     zval_ptr_dtor(&retval);
     zval_ptr_dtor(&closure_zv);
+    if (fname_copy) zend_string_release(fname_copy);
     if (params) {
         for (uint32_t i = 0; i < argc; i++) zval_ptr_dtor(&params[i]);
         efree(params);

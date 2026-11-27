@@ -147,12 +147,31 @@ zend_op_array *gcd_op_array_copy_persistent(zend_op_array *src)
     } else {
         oa->live_range = NULL;
     }
+    /* deep-copy nested closures/anon classes so concurrent workers don't race
+     * on a shared op_array refcount (TSan-verified fix) */
+    if (src->num_dynamic_func_defs && src->dynamic_func_defs) {
+        oa->dynamic_func_defs = pemalloc(sizeof(zend_function *) * src->num_dynamic_func_defs, 1);
+        oa->num_dynamic_func_defs = src->num_dynamic_func_defs;
+        for (uint32_t i = 0; i < src->num_dynamic_func_defs; i++) {
+            zend_function *f = src->dynamic_func_defs[i];
+            if (f && f->type == ZEND_USER_FUNCTION) {
+                zend_op_array *cp = gcd_op_array_copy_persistent(&f->op_array);
+                zend_function *nf = pemalloc(sizeof(zend_function), 1);
+                memset(nf, 0, sizeof(*nf));
+                nf->type = ZEND_USER_FUNCTION;
+                nf->op_array = *cp;
+                pefree(cp, 1);
+                oa->dynamic_func_defs[i] = nf;
+            } else {
+                oa->dynamic_func_defs[i] = f;
+            }
+        }
+    }
     return oa;
 }
 
-void gcd_op_array_free_persistent(zend_op_array *oa)
+static void gcd_op_array_free_contents(zend_op_array *oa)
 {
-    if (!oa) return;
     if (oa->literals) {
         for (uint32_t i = 0; i < oa->last_literal; i++) {
             gcd_zval_free(&oa->literals[i], 1);
@@ -176,5 +195,21 @@ void gcd_op_array_free_persistent(zend_op_array *oa)
     if (oa->filename) zend_string_release(oa->filename);
     if (oa->function_name) zend_string_release(oa->function_name);
     if (oa->doc_comment) zend_string_release(oa->doc_comment);
+    if (oa->dynamic_func_defs) {
+        for (uint32_t i = 0; i < oa->num_dynamic_func_defs; i++) {
+            zend_function *f = oa->dynamic_func_defs[i];
+            if (f && f->type == ZEND_USER_FUNCTION) {
+                gcd_op_array_free_contents(&f->op_array);
+                pefree(f, 1);
+            }
+        }
+        pefree(oa->dynamic_func_defs, 1);
+    }
+}
+
+void gcd_op_array_free_persistent(zend_op_array *oa)
+{
+    if (!oa) return;
+    gcd_op_array_free_contents(oa);
     pefree(oa, 1);
 }

@@ -1,0 +1,20 @@
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git ca-certificates autoconf bison re2c pkg-config build-essential \
+    libcurl4-openssl-dev libssl-dev libxml2-dev libsqlite3-dev zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
+COPY php-src /usr/src/php
+WORKDIR /usr/src/php
+RUN ./buildconf --force \
+    && ./configure \
+       --host=aarch64-unknown-linux-gnu \
+       --enable-zts \
+       --disable-all --enable-cli --enable-embed \
+       --enable-curl --with-curl --with-openssl \
+       --enable-pcntl --enable-posix --enable-sockets \
+       --enable-filter --enable-tokenizer --enable-ctype --without-pear \
+       CFLAGS="-fsanitize=thread -fno-omit-frame-pointer -g -O1" \
+       LDFLAGS="-fsanitize=thread" \
+    && make -j"$(nproc)" \
+    && make install
+# TSan runtime needs --privileged at RUN time (aarch64 Docker); skip build-time php -v
