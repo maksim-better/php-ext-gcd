@@ -1,0 +1,17 @@
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git ca-certificates autoconf bison re2c pkg-config build-essential \
+    libcurl4-openssl-dev libssl-dev libxml2-dev libsqlite3-dev zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
+COPY php-src /usr/src/php
+WORKDIR /usr/src/php
+RUN ./buildconf --force \
+    && ./configure \
+       --enable-zts --enable-debug --enable-address-sanitizer \
+       --disable-all --enable-cli --enable-embed \
+       --enable-curl --with-curl --with-openssl \
+       --enable-pcntl --enable-posix --enable-sockets \
+       --enable-filter --enable-tokenizer --enable-ctype --without-pear \
+    && make -j"$(nproc)" \
+    && make install
+RUN php -v && php -i | grep 'Thread Safety'

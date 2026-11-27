@@ -45,6 +45,19 @@ PHP_MSHUTDOWN_FUNCTION(gcd)
     return SUCCESS;
 }
 
+PHP_RSHUTDOWN_FUNCTION(gcd)
+{
+    /* Join workers here (main request shutdown), BEFORE zend_destroy_modules
+     * frees the global module-handlers block that worker php_request_shutdown
+     * reads. MSHUTDOWN runs after that free -> would be use-after-free.
+     * Main thread only: a worker's own php_request_shutdown re-enters RSHUTDOWN
+     * and must not join the pool (self-join deadlock). */
+    if (tsrm_is_main_thread()) {
+        gcd_pool_shutdown();
+    }
+    return SUCCESS;
+}
+
 PHP_MINFO_FUNCTION(gcd)
 {
     php_info_print_table_start();
@@ -275,7 +288,7 @@ zend_module_entry gcd_module_entry = {
     PHP_MINIT(gcd),
     PHP_MSHUTDOWN(gcd),
     NULL,
-    NULL,
+    PHP_RSHUTDOWN(gcd),
     PHP_MINFO(gcd),
     PHP_GCD_VERSION,
     STANDARD_MODULE_PROPERTIES
