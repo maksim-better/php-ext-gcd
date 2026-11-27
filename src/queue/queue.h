@@ -15,6 +15,8 @@ typedef struct _gcd_queue {
     int draining;
     int inflight;                   /* concurrent width gate */
     int barrier_active;             /* exclusive barrier in progress */
+    int suspended;
+    HashTable specific;             /* persistent key -> zval context */
     pthread_mutex_t width_mutex;
     pthread_cond_t width_cond;
 } gcd_queue;
@@ -35,5 +37,9 @@ void gcd_queue_drain(gcd_queue *q);
 
 PHP_FUNCTION(queue_create);
 PHP_FUNCTION(global_queue);
+PHP_FUNCTION(queue_suspend);
+PHP_FUNCTION(queue_resume);
+PHP_FUNCTION(queue_set_specific);
+PHP_FUNCTION(queue_get_specific);
 
 #endif

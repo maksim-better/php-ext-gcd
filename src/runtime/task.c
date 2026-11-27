@@ -38,12 +38,12 @@ void gcd_task_execute(gcd_task *t)
     if (gated) {
         pthread_mutex_lock(&q->width_mutex);
         if (t->is_barrier) {
-            while (q->inflight > 0) {
+            while (q->inflight > 0 || q->suspended) {
                 pthread_cond_wait(&q->width_cond, &q->width_mutex);
             }
             q->barrier_active = 1;
         } else {
-            while (q->inflight >= q->width || q->barrier_active) {
+            while (q->inflight >= q->width || q->barrier_active || q->suspended) {
                 pthread_cond_wait(&q->width_cond, &q->width_mutex);
             }
             q->inflight++;

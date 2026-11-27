@@ -1,6 +1,7 @@
 #include "queue.h"
 #include "../runtime/task.h"
 #include "../runtime/thread_pool.h"
+#include "../runtime/copy.h"
 #include <Zend/zend_exceptions.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,6 +10,8 @@ zend_class_entry *gcd_queue_ce;
 zend_class_entry *gcd_capture_ce;
 zend_class_entry *gcd_serialization_ce;
 static zend_object_handlers gcd_queue_handlers;
+
+static void specific_dtor(zval *zv) { gcd_zval_free(zv, 1); }
 
 static inline gcd_queue_object *gcd_queue_fetch(zend_object *obj)
 {
@@ -27,6 +30,7 @@ static zend_object *gcd_queue_create_object(zend_class_entry *ce)
     pthread_mutex_init(&obj->q->list_mutex, NULL);
     pthread_mutex_init(&obj->q->width_mutex, NULL);
     pthread_cond_init(&obj->q->width_cond, NULL);
+    zend_hash_init(&obj->q->specific, 4, NULL, specific_dtor, 1);
     return &obj->std;
 }
 
@@ -38,6 +42,7 @@ static void gcd_queue_free_object(zend_object *object)
         pthread_mutex_destroy(&obj->q->list_mutex);
         pthread_mutex_destroy(&obj->q->width_mutex);
         pthread_cond_destroy(&obj->q->width_cond);
+        zend_hash_destroy(&obj->q->specific);
         free(obj->q->label);
         free(obj->q);
     }
@@ -136,6 +141,11 @@ void gcd_queue_enqueue(gcd_queue *q, gcd_task *t)
 void gcd_queue_drain(gcd_queue *q)
 {
     pthread_mutex_lock(&q->drain_lock);
+    pthread_mutex_lock(&q->width_mutex);
+    while (q->suspended) {
+        pthread_cond_wait(&q->width_cond, &q->width_mutex);
+    }
+    pthread_mutex_unlock(&q->width_mutex);
     for (;;) {
         pthread_mutex_lock(&q->list_mutex);
         gcd_task *t = q->head;
@@ -152,4 +162,85 @@ void gcd_queue_drain(gcd_queue *q)
     if (again) q->draining = 1;
     pthread_mutex_unlock(&q->list_mutex);
     if (again) submit_drain_job(q);
+}
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_queue_one, 0, 0, 1)
+    ZEND_ARG_INFO(0, queue)
+ZEND_END_ARG_INFO()
+
+PHP_FUNCTION(queue_suspend)
+{
+    zval *qobj;
+    ZEND_PARSE_PARAMETERS_START(1, 1) Z_PARAM_OBJECT(qobj) ZEND_PARSE_PARAMETERS_END();
+    gcd_queue *q = gcd_queue_from_zval(qobj);
+    if (!q) { zend_throw_exception(zend_ce_type_error, "expected GCD\\Queue", 0); RETURN_THROWS(); }
+    pthread_mutex_lock(&q->width_mutex);
+    q->suspended = 1;
+    pthread_mutex_unlock(&q->width_mutex);
+}
+
+PHP_FUNCTION(queue_resume)
+{
+    zval *qobj;
+    ZEND_PARSE_PARAMETERS_START(1, 1) Z_PARAM_OBJECT(qobj) ZEND_PARSE_PARAMETERS_END();
+    gcd_queue *q = gcd_queue_from_zval(qobj);
+    if (!q) { zend_throw_exception(zend_ce_type_error, "expected GCD\\Queue", 0); RETURN_THROWS(); }
+    pthread_mutex_lock(&q->width_mutex);
+    q->suspended = 0;
+    pthread_cond_broadcast(&q->width_cond);
+    pthread_mutex_unlock(&q->width_mutex);
+}
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_queue_set_specific, 0, 0, 3)
+    ZEND_ARG_INFO(0, queue)
+    ZEND_ARG_INFO(0, key)
+    ZEND_ARG_INFO(0, value)
+ZEND_END_ARG_INFO()
+
+PHP_FUNCTION(queue_set_specific)
+{
+    zval *qobj, *val;
+    char *key; size_t len;
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+        Z_PARAM_OBJECT(qobj)
+        Z_PARAM_STRING(key, len)
+        Z_PARAM_ZVAL(val)
+    ZEND_PARSE_PARAMETERS_END();
+    gcd_queue *q = gcd_queue_from_zval(qobj);
+    if (!q) { zend_throw_exception(zend_ce_type_error, "expected GCD\\Queue", 0); RETURN_THROWS(); }
+    zval copy;
+    if (gcd_zval_copy_persistent(&copy, val) == FAILURE) {
+        zend_throw_exception(gcd_serialization_ce, "value is not serializable", 0);
+        RETURN_THROWS();
+    }
+    pthread_mutex_lock(&q->width_mutex);
+    zend_hash_str_update(&q->specific, key, len, &copy);
+    pthread_mutex_unlock(&q->width_mutex);
+}
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_queue_get_specific, 0, 0, 2)
+    ZEND_ARG_INFO(0, queue)
+    ZEND_ARG_INFO(0, key)
+ZEND_END_ARG_INFO()
+
+PHP_FUNCTION(queue_get_specific)
+{
+    zval *qobj;
+    char *key; size_t len;
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_OBJECT(qobj)
+        Z_PARAM_STRING(key, len)
+    ZEND_PARSE_PARAMETERS_END();
+    gcd_queue *q = gcd_queue_from_zval(qobj);
+    if (!q) { zend_throw_exception(zend_ce_type_error, "expected GCD\\Queue", 0); RETURN_THROWS(); }
+    pthread_mutex_lock(&q->width_mutex);
+    zval *found = zend_hash_str_find(&q->specific, key, len);
+    if (found) {
+        zval ret;
+        gcd_zval_copy(&ret, found, 0);
+        pthread_mutex_unlock(&q->width_mutex);
+        RETURN_COPY_VALUE(&ret);
+    }
+    pthread_mutex_unlock(&q->width_mutex);
+    RETURN_NULL();
 }
