@@ -57,6 +57,7 @@ void gcd_queue_release(gcd_queue *q)
 {
     if (!q) return;
     if (atomic_fetch_sub(&q->refcount, 1) == 1) {
+        if (q->target) gcd_queue_release(q->target);
         pthread_mutex_destroy(&q->drain_lock);
         pthread_mutex_destroy(&q->list_mutex);
         pthread_mutex_destroy(&q->width_mutex);
@@ -176,6 +177,8 @@ PHP_FUNCTION(queue_set_target)
     for (gcd_queue *cur = t; cur; cur = cur->target) {
         if (cur == q) { zend_throw_exception(zend_ce_value_error, "target queue cycle", 0); RETURN_THROWS(); }
     }
+    gcd_queue_retain(t);
+    if (q->target) gcd_queue_release(q->target);
     q->target = t;
 }
 
