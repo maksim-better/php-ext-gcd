@@ -1,0 +1,50 @@
+# AI 生成的文件 / AI-generated files
+
+# Claude Code 配置与技能
+.claude/
+
+# Spec Kit (speckit) 脚手架：模板、脚本、工作流、本地状态
+.specify/
+
+# AI 生成的规格文档（spec / plan / tasks 等）
+specs/
+
+# 常见 AI 助手产物
+CLAUDE.md
+GEMINI.md
+.cursor/
+.cursorrules
+.aider*
+.windsurf/
+.github/copilot-instructions.md
+
+# PHP 扩展构建产物（phpize / autoconf / libtool）
+*.lo
+*.la
+.libs/
+.deps/
+modules/
+build/
+autom4te.cache/
+Makefile
+Makefile.fragments
+Makefile.objects
+config.h
+config.h.in
+config.h.in~
+config.log
+config.nice
+config.status
+config.guess
+config.sub
+configure
+configure.ac
+install-sh
+ltmain.sh
+missing
+mkinstalldirs
+run-tests.php
+*.swp
+
+# 宿主克隆的 PHP 源码（docker 构建用，不提交）
+docker/php-src/
